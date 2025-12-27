@@ -1,0 +1,41 @@
+:root {
+  border: none;
+}
+
+body {
+  background-color: rgb(24, 24, 24);
+  width: 400px;
+}
+.title {
+  color: white;
+  text-align: center;
+}
+.ignore {
+  color: white;
+  font-size: 20px;
+  display: flex;
+  flex-direction: row;
+}
+.ignore-input {
+  flex: 1;
+}
+.ignore-input input {
+  background-color: rgb(32, 32, 32);
+  border: none;
+  color: white;
+}
+.ignore-list {
+  flex: 1;
+}
+nav {
+  margin-top: 10px;
+  width: 100%;
+  margin: 10px;
+  justify-self: center;
+}
+nav a {
+  text-decoration: none;
+  color: white;
+  border: 1px solid white;
+  padding: 5px;
+}

@@ -1,0 +1,36 @@
+:root {
+  border: none;
+}
+
+body {
+  background-color: rgb(24, 24, 24);
+  width: 400px;
+}
+.title {
+  color: white;
+  text-align: center;
+}
+.currentTime {
+  padding-top: 20px;
+  color: white;
+}
+.currentTime h2 {
+  font-size: 15px;
+}
+.currentTime p {
+  margin: 0;
+  color: rgb(133, 133, 255);
+  font-size: 20px;
+}
+nav {
+  margin-top: 10px;
+  width: 100%;
+  margin: 10px;
+  justify-self: center;
+}
+nav a {
+  text-decoration: none;
+  color: white;
+  border: 1px solid white;
+  padding: 5px;
+}
