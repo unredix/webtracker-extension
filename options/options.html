@@ -9,15 +9,39 @@
     <div class="title">
       <h1>Options</h1>
     </div>
-    <div class="ignore">
-      <div class="ignore-input">
-        <p>Add sites to ignore</p>
-        <input type="text" name="ignore-url" id="ignore-url" />
+    <section>
+      <h2>Ignore</h2>
+      <div class="ignore">
+        <div class="ignore-input">
+          <p>Add sites to ignore</p>
+          <input type="text" name="ignore-url" id="ignore-url" />
+          <input
+            type="checkbox"
+            name="ignore-incog"
+            id="ignore-incog"
+            class="checkbox-option"
+          />
+          <label for="ignore-incog">Ignore incognito</label>
+        </div>
+        <div class="ignore-list">
+          <ul id="ignored-sites-list"></ul>
+        </div>
       </div>
-      <div class="ignore-list">
-        <p>Ignored</p>
+    </section>
+    <section>
+      <h2>Language</h2>
+      <div class="lang">
+        <select name="lang" id="lang">
+          <option value="eng">English</option>
+          <option value="hu">Hungarian</option>
+        </select>
       </div>
-    </div>
+    </section>
+    <section></section>
+    <footer>
+      <button style="display: none" id="save-changes">Save</button>
+      <button style="display: none" id="cancel-changes">Cancel</button>
+    </footer>
     <script src="options.js"></script>
   </body>
 </html>

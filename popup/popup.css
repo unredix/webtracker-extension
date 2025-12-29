@@ -10,6 +10,13 @@ body {
   color: white;
   text-align: center;
 }
+#status {
+  border: 1px solid rgb(133, 133, 255);
+  padding: 5px;
+  color: rgb(133, 133, 255);
+  border-radius: 3px;
+  text-align: center;
+}
 .currentTime {
   padding-top: 20px;
   color: white;
