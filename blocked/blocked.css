@@ -1,0 +1,102 @@
+:root {
+  border: none;
+}
+
+body {
+  background-color: rgb(24, 24, 24);
+  color: white;
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.card {
+  max-width: 560px;
+  width: 100%;
+}
+
+h1 {
+  color: white;
+  margin-bottom: 5px;
+}
+
+#subheading {
+  color: rgb(133, 133, 255);
+  margin-top: 0;
+}
+
+.choice {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+button {
+  background-color: rgb(32, 32, 32);
+  color: rgb(133, 133, 255);
+  border: 1px solid rgb(133, 133, 255);
+  border-radius: 3px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+button:hover {
+  background-color: rgb(40, 40, 50);
+}
+
+.challenge {
+  margin-top: 20px;
+  border: 1px solid rgb(60, 60, 60);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.prompt {
+  font-size: 28px;
+  color: rgb(133, 133, 255);
+}
+
+#math-answer {
+  background-color: rgb(32, 32, 32);
+  border: 1px solid rgb(133, 133, 255);
+  color: white;
+  padding: 8px;
+  font-size: 18px;
+  border-radius: 3px;
+  width: 120px;
+}
+
+.actions {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.feedback {
+  margin-top: 10px;
+  min-height: 20px;
+}
+
+.passage {
+  line-height: 1.5;
+}
+
+.question {
+  margin-bottom: 15px;
+}
+
+.question p {
+  margin-bottom: 6px;
+}
+
+.question label {
+  display: block;
+  margin-bottom: 4px;
+  cursor: pointer;
+}

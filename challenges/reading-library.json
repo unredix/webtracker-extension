@@ -1,0 +1,70 @@
+{
+  "passages": [
+    {
+      "id": "space-01",
+      "theme": "Space",
+      "title": "The Voyager Probes",
+      "text": "Launched in 1977, the Voyager 1 and Voyager 2 probes were originally designed for a five-year mission to study Jupiter and Saturn. Both spacecraft performed so well that NASA extended their missions repeatedly. Voyager 1 is now the most distant human-made object from Earth, having entered interstellar space in 2012. Each probe carries a Golden Record, a phonograph disc containing sounds and images meant to portray the diversity of life and culture on Earth, in case either craft is ever found by another civilization.",
+      "questions": [
+        { "prompt": "What was the original planned mission length for the Voyager probes?", "choices": ["2 years", "5 years", "10 years", "20 years"], "correctIndex": 1 },
+        { "prompt": "What does each Voyager probe carry?", "choices": ["A time capsule of seeds", "A Golden Record", "A second onboard computer", "A photograph of Earth only"], "correctIndex": 1 },
+        { "prompt": "What milestone did Voyager 1 reach in 2012?", "choices": ["It landed on Titan", "It entered interstellar space", "It lost contact with Earth", "It returned to Earth orbit"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "history-01",
+      "theme": "History",
+      "title": "The Library of Alexandria",
+      "text": "The Library of Alexandria, founded in Egypt in the third century BCE, was one of the largest and most significant libraries of the ancient world. It aimed to collect all the world's knowledge, and scholars there made major advances in mathematics, astronomy, and medicine. The library's exact fate is debated by historians, with damage attributed to several events over centuries rather than a single dramatic fire, as popular legend often suggests.",
+      "questions": [
+        { "prompt": "In which country was the Library of Alexandria located?", "choices": ["Greece", "Egypt", "Turkey", "Italy"], "correctIndex": 1 },
+        { "prompt": "What was the library's stated goal?", "choices": ["To train soldiers", "To collect all the world's knowledge", "To mint currency", "To house a royal court"], "correctIndex": 1 },
+        { "prompt": "According to the passage, how did the library most likely decline?", "choices": ["A single dramatic fire", "Damage from several events over centuries", "It was relocated intact", "It was never actually built"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "nature-01",
+      "theme": "Nature",
+      "title": "How Octopuses Change Color",
+      "text": "Octopuses can change the color and texture of their skin in a fraction of a second, using specialized cells called chromatophores. Each chromatophore contains a sac of pigment surrounded by tiny muscles; when the muscles contract, the sac expands and the color becomes more visible. Beneath the chromatophores, other cells called iridophores reflect light to create iridescent blues and greens. Octopuses use this ability both to camouflage against predators and to communicate with other octopuses.",
+      "questions": [
+        { "prompt": "What are the color-changing cells in octopus skin called?", "choices": ["Iridophores", "Chromatophores", "Melanocytes", "Photocytes"], "correctIndex": 1 },
+        { "prompt": "What causes a chromatophore's pigment sac to become more visible?", "choices": ["Water temperature changes", "Surrounding muscles contracting", "Exposure to sunlight", "The octopus eating"], "correctIndex": 1 },
+        { "prompt": "What do iridophores do?", "choices": ["Store food", "Reflect light to create iridescent colors", "Produce ink", "Sense vibrations"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "science-01",
+      "theme": "Science",
+      "title": "Why Ice Floats",
+      "text": "Most substances are denser as solids than as liquids, but water is an exception. When water freezes, its molecules form a hexagonal crystal lattice that holds them farther apart than in liquid water. This makes ice about nine percent less dense than liquid water, which is why ice floats. This property is important for aquatic life: because ice floats and forms an insulating layer on top of lakes and rivers, water below can remain liquid even in freezing temperatures, allowing fish and other organisms to survive winter.",
+      "questions": [
+        { "prompt": "Why is ice less dense than liquid water?", "choices": ["It contains trapped air bubbles", "Its molecules form a lattice that holds them farther apart", "It is colder and therefore lighter", "It contains fewer molecules overall"], "correctIndex": 1 },
+        { "prompt": "By approximately how much is ice less dense than liquid water?", "choices": ["1%", "9%", "25%", "50%"], "correctIndex": 1 },
+        { "prompt": "Why does ice floating matter for aquatic life?", "choices": ["It reflects sunlight away from fish", "It forms an insulating layer so water below stays liquid", "It raises the water's oxygen level", "It prevents evaporation in summer"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "history-02",
+      "theme": "History",
+      "title": "The Invention of the Printing Press",
+      "text": "Around 1440, Johannes Gutenberg developed a printing press using movable metal type in the city of Mainz, Germany. Before this, books were copied by hand or printed from carved wooden blocks, making them slow and expensive to produce. Gutenberg's press could produce many identical copies of a text far more quickly, which dramatically lowered the cost of books and helped spread literacy across Europe. His most famous work, the Gutenberg Bible, is considered one of the most important books in history.",
+      "questions": [
+        { "prompt": "Around what year did Gutenberg develop his printing press?", "choices": ["1200", "1440", "1600", "1800"], "correctIndex": 1 },
+        { "prompt": "What made Gutenberg's press different from earlier methods?", "choices": ["It used movable metal type", "It only printed pictures", "It required no ink", "It was operated by water power"], "correctIndex": 0 },
+        { "prompt": "What effect did the printing press have on Europe?", "choices": ["It raised the cost of books", "It helped spread literacy", "It ended handwriting entirely", "It had little lasting impact"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "space-02",
+      "theme": "Space",
+      "title": "What Is a Black Hole?",
+      "text": "A black hole is a region of space where gravity is so strong that nothing, not even light, can escape once it crosses a boundary called the event horizon. Black holes form when massive stars collapse at the end of their lives. Despite the name, a black hole is not empty; it packs a large amount of mass into a very small space. Scientists cannot observe black holes directly, but they can detect them by observing their effects on nearby stars and gas, or by capturing images of the glowing material that swirls around them.",
+      "questions": [
+        { "prompt": "What is the boundary around a black hole called?", "choices": ["The event horizon", "The singularity line", "The gravity wall", "The light barrier"], "correctIndex": 0 },
+        { "prompt": "How do black holes typically form?", "choices": ["From cooling planets", "From the collapse of massive stars", "From colliding asteroids", "From solar flares"], "correctIndex": 1 },
+        { "prompt": "How do scientists usually detect black holes?", "choices": ["By flying probes into them", "By observing their effects on nearby matter", "By measuring their sound waves", "By weighing them directly"], "correctIndex": 1 }
+      ]
+    }
+  ]
+}

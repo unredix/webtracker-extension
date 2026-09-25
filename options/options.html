@@ -14,7 +14,8 @@
       <div class="ignore">
         <div class="ignore-input">
           <p>Add sites to ignore</p>
-          <input type="text" name="ignore-url" id="ignore-url" />
+          <input type="text" name="ignore-url" id="ignore-url" placeholder="example.com" />
+          <p class="field-error" id="ignore-url-error"></p>
           <input
             type="checkbox"
             name="ignore-incog"
@@ -29,19 +30,51 @@
       </div>
     </section>
     <section>
-      <h2>Language</h2>
-      <div class="lang">
-        <select name="lang" id="lang">
-          <option value="eng">English</option>
-          <option value="hu">Hungarian</option>
-        </select>
+      <h2>Per-site daily limits</h2>
+      <div class="ignore">
+        <div class="ignore-input">
+          <p>Add a site limit</p>
+          <input type="text" name="limit-url" id="limit-url" placeholder="example.com" />
+          <input type="number" name="limit-minutes" id="limit-minutes" placeholder="Minutes" min="1" max="1440" />
+          <button type="button" id="add-limit">Add</button>
+          <p class="field-error" id="limit-error"></p>
+        </div>
+        <div class="ignore-list">
+          <ul id="site-limits-list"></ul>
+        </div>
       </div>
     </section>
-    <section></section>
+    <section>
+      <h2>Global daily limit</h2>
+      <div class="ignore-input">
+        <input
+          type="checkbox"
+          name="global-limit-enabled"
+          id="global-limit-enabled"
+          class="checkbox-option"
+        />
+        <label for="global-limit-enabled">Enable an overall daily browsing limit</label>
+        <div>
+          <input
+            type="number"
+            name="global-limit-minutes"
+            id="global-limit-minutes"
+            placeholder="Minutes"
+            min="1"
+            max="1440"
+          />
+        </div>
+        <p class="field-error" id="global-limit-error"></p>
+      </div>
+    </section>
+    <!-- Language selection is deferred: chrome.i18n follows the browser's UI
+         locale, not a user-chosen value, so a manual picker would need a
+         custom message-loading layer plus translated challenge content.
+         That's out of scope for this pass. -->
     <footer>
       <button style="display: none" id="save-changes">Save</button>
       <button style="display: none" id="cancel-changes">Cancel</button>
     </footer>
-    <script src="options.js"></script>
+    <script src="options.js" type="module"></script>
   </body>
 </html>
