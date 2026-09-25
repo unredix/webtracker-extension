@@ -1,26 +1,22 @@
-import { getSettings, getDayState, saveDayState, todayKey, pruneOldDayKeys } from "./lib/storage.js";
+import {
+  getSettings,
+  getDayState,
+  saveDayState,
+  todayKey,
+  pruneOldDayKeys,
+  getActiveSession,
+  saveActiveSession,
+} from "./lib/storage.js";
 import { isBlocked, evaluateLimits } from "./lib/limits.js";
 
 const IDLE_DETECTION_SECONDS = 15;
+const MAX_FLUSH_SECONDS = 600; // cap a single flush (e.g. after OS sleep) so a long gap can't over-attribute time
 
-let activeSession = {
-  hostname: null,
-  tabId: null,
-  windowId: null,
-  startedAt: Date.now(),
-  idle: false,
-  windowFocused: true,
-};
+let activeSession = null;
 
 chrome.idle.setDetectionInterval(IDLE_DETECTION_SECONDS);
 chrome.alarms.create("heartbeat", { periodInMinutes: 1 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  reanchorFromCurrentState();
-});
-chrome.runtime.onStartup.addListener(() => {
-  reanchorFromCurrentState();
-});
 chrome.tabs.onActivated.addListener(handleTabActivated);
 chrome.tabs.onUpdated.addListener(handleTabUpdated);
 chrome.tabs.onRemoved.addListener(handleTabRemoved);
@@ -29,7 +25,7 @@ chrome.idle.onStateChanged.addListener(handleIdleStateChanged);
 chrome.alarms.onAlarm.addListener(handleAlarm);
 chrome.runtime.onMessage.addListener(handleMessage);
 
-reanchorFromCurrentState();
+wakeAndReconcile();
 
 function hostnameFromUrl(url) {
   try {
@@ -41,13 +37,33 @@ function hostnameFromUrl(url) {
   }
 }
 
-async function reanchorFromCurrentState() {
+async function loadActiveSession() {
+  if (!activeSession) {
+    activeSession = (await getActiveSession()) || {
+      hostname: null,
+      tabId: null,
+      windowId: null,
+      startedAt: Date.now(),
+      idle: false,
+      windowFocused: true,
+    };
+  }
+  return activeSession;
+}
+
+// Called on every service-worker wake (fresh module execution). Flushes any
+// time that elapsed against the *persisted* anchor (which may predate this
+// wake by anywhere from a few seconds to the full suspension) before
+// re-deriving what's actually on screen right now.
+async function wakeAndReconcile() {
+  await flush();
+
   try {
     const win = await chrome.windows.getLastFocused({ populate: false });
     const windowFocused = !!win && win.focused;
     let hostname = null;
     let tabId = null;
-    let windowId = win ? win.id : null;
+    const windowId = win ? win.id : null;
 
     if (windowFocused) {
       const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
@@ -71,13 +87,19 @@ async function reanchorFromCurrentState() {
       idle = false;
     }
 
-    activeSession = { hostname, tabId, windowId, startedAt: Date.now(), idle, windowFocused };
+    activeSession.hostname = hostname;
+    activeSession.tabId = tabId;
+    activeSession.windowId = windowId;
+    activeSession.windowFocused = windowFocused;
+    activeSession.idle = idle;
+    await saveActiveSession(activeSession);
   } catch {
-    activeSession = { hostname: null, tabId: null, windowId: null, startedAt: Date.now(), idle: false, windowFocused: true };
+    // Leave the just-flushed state as-is; the next event will retry reconciliation.
   }
 }
 
 async function flush(now = Date.now()) {
+  await loadActiveSession();
   const settings = await getSettings();
   const wasCounting =
     activeSession.hostname &&
@@ -86,7 +108,8 @@ async function flush(now = Date.now()) {
     !settings.ignoredSites.includes(activeSession.hostname);
 
   if (wasCounting) {
-    const elapsedSec = Math.max(0, Math.round((now - activeSession.startedAt) / 1000));
+    const rawElapsedSec = Math.max(0, Math.round((now - activeSession.startedAt) / 1000));
+    const elapsedSec = Math.min(rawElapsedSec, MAX_FLUSH_SECONDS);
     if (elapsedSec > 0) {
       const dateKey = todayKey();
       const day = await getDayState(dateKey);
@@ -107,6 +130,7 @@ async function flush(now = Date.now()) {
   }
 
   activeSession.startedAt = now;
+  await saveActiveSession(activeSession);
 }
 
 async function maybeKickActiveTab(day, settings) {
@@ -163,22 +187,27 @@ async function handleTabActivated({ tabId, windowId }) {
     activeSession.hostname = null;
     activeSession.tabId = null;
   }
+  await saveActiveSession(activeSession);
 }
 
 async function handleTabUpdated(tabId, changeInfo, tab) {
+  await loadActiveSession();
   if (tabId !== activeSession.tabId) return;
   if (!changeInfo.url) return;
   await flush();
   const settings = await getSettings();
   const allowIncognito = tab.incognito ? !settings.ignoreInIncognito : true;
   activeSession.hostname = allowIncognito ? hostnameFromUrl(changeInfo.url) : null;
+  await saveActiveSession(activeSession);
 }
 
 async function handleTabRemoved(tabId) {
+  await loadActiveSession();
   if (tabId !== activeSession.tabId) return;
   await flush();
   activeSession.hostname = null;
   activeSession.tabId = null;
+  await saveActiveSession(activeSession);
 }
 
 async function handleWindowFocusChanged(windowId) {
@@ -187,6 +216,7 @@ async function handleWindowFocusChanged(windowId) {
     activeSession.windowFocused = false;
     activeSession.hostname = null;
     activeSession.tabId = null;
+    await saveActiveSession(activeSession);
     return;
   }
   try {
@@ -208,11 +238,13 @@ async function handleWindowFocusChanged(windowId) {
   } catch {
     activeSession.windowFocused = false;
   }
+  await saveActiveSession(activeSession);
 }
 
 async function handleIdleStateChanged(state) {
   await flush();
   activeSession.idle = state !== "active";
+  await saveActiveSession(activeSession);
 }
 
 async function handleAlarm(alarm) {

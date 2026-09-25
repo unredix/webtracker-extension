@@ -1,4 +1,4 @@
-import { getSettings, getDayState } from "../lib/storage.js";
+import { getSettings, getDayState, getActiveSession } from "../lib/storage.js";
 import { isBlocked } from "../lib/limits.js";
 import { formatHMS } from "../lib/time.js";
 
@@ -45,11 +45,23 @@ async function render() {
     }
   }
 
-  const elapsedSeconds = day.tracking.sites[currentHostname] || 0;
+  const storedSeconds = day.tracking.sites[currentHostname] || 0;
+  const elapsedSeconds = storedSeconds + (await liveEstimateSeconds());
   const limitMinutes = settings.siteLimits[currentHostname];
   timeEl.textContent = limitMinutes
     ? `${formatHMS(elapsedSeconds)} / ${formatHMS(limitMinutes * 60)}`
     : formatHMS(elapsedSeconds);
+}
+
+// The background worker only writes accumulated time to storage on discrete
+// events (tab/focus/idle changes, or a once-a-minute heartbeat). Add the
+// in-flight seconds since its last write so the popup ticks live instead of
+// jumping once a minute. Read-only: nothing is written back from here.
+async function liveEstimateSeconds() {
+  const session = await getActiveSession();
+  if (!session || session.hostname !== currentHostname) return 0;
+  if (!session.windowFocused || session.idle) return 0;
+  return Math.max(0, (Date.now() - session.startedAt) / 1000);
 }
 
 function showStatus(message) {
