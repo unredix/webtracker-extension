@@ -133,18 +133,48 @@ footer button:hover {
 #ignored-sites-list li:last-child {
   border-bottom: none;
 }
-.lang {
-  margin-top: 15px;
-  margin-bottom: 15px;
+.field-error {
+  color: #ff8080;
+  font-size: 13px;
+  min-height: 16px;
+  margin: 4px 0;
 }
-.lang select {
+
+#site-limits-list,
+#limit-url,
+#limit-minutes,
+#global-limit-minutes {
   background-color: rgb(32, 32, 32);
   border: none;
-  color: rgb(133, 133, 255);
-  width: 80px;
-  height: 30px;
-  border-radius: 3px;
+  color: white;
 }
-.lang option {
-  border: none;
+
+#limit-minutes,
+#global-limit-minutes {
+  width: 70px;
+  margin-left: 5px;
+}
+
+#add-limit {
+  background-color: rgb(32, 32, 32);
+  color: rgb(133, 133, 255);
+  border: 1px solid rgb(133, 133, 255);
+  border-radius: 3px;
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+#site-limits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#site-limits-list li {
+  padding: 6px;
+  border-bottom: 1px solid #eee;
+}
+
+#site-limits-list li:last-child {
+  border-bottom: none;
 }

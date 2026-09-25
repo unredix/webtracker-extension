@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time limit reached</title>
+    <link rel="stylesheet" href="blocked.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1 id="heading">Daily limit reached</h1>
+      <p id="subheading"></p>
+
+      <section id="choice" class="choice">
+        <button id="choose-math" type="button">Solve math problems</button>
+        <button id="choose-reading" type="button">Read a passage</button>
+      </section>
+
+      <section id="math-challenge" class="challenge" hidden>
+        <p id="math-progress"></p>
+        <p id="math-prompt" class="prompt"></p>
+        <input id="math-answer" type="number" inputmode="numeric" autocomplete="off" />
+        <div class="actions">
+          <button id="math-submit" type="button">Submit</button>
+        </div>
+        <p id="math-feedback" class="feedback"></p>
+      </section>
+
+      <section id="reading-challenge" class="challenge" hidden>
+        <h2 id="reading-title"></h2>
+        <p id="reading-text" class="passage"></p>
+        <div id="reading-questions"></div>
+        <div class="actions">
+          <button id="reading-submit" type="button">Submit answers</button>
+          <button id="reading-reroll" type="button">Try another passage</button>
+        </div>
+        <p id="reading-feedback" class="feedback"></p>
+      </section>
+    </main>
+    <script type="module" src="blocked.js"></script>
+  </body>
+</html>

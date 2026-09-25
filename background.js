@@ -1,13 +1,251 @@
-const ignoredSites = null;
+import { getSettings, getDayState, saveDayState, todayKey, pruneOldDayKeys } from "./lib/storage.js";
+import { isBlocked, evaluateLimits } from "./lib/limits.js";
 
-async function initializeExtension() {
+const IDLE_DETECTION_SECONDS = 15;
+
+let activeSession = {
+  hostname: null,
+  tabId: null,
+  windowId: null,
+  startedAt: Date.now(),
+  idle: false,
+  windowFocused: true,
+};
+
+chrome.idle.setDetectionInterval(IDLE_DETECTION_SECONDS);
+chrome.alarms.create("heartbeat", { periodInMinutes: 1 });
+
+chrome.runtime.onInstalled.addListener(() => {
+  reanchorFromCurrentState();
+});
+chrome.runtime.onStartup.addListener(() => {
+  reanchorFromCurrentState();
+});
+chrome.tabs.onActivated.addListener(handleTabActivated);
+chrome.tabs.onUpdated.addListener(handleTabUpdated);
+chrome.tabs.onRemoved.addListener(handleTabRemoved);
+chrome.windows.onFocusChanged.addListener(handleWindowFocusChanged);
+chrome.idle.onStateChanged.addListener(handleIdleStateChanged);
+chrome.alarms.onAlarm.addListener(handleAlarm);
+chrome.runtime.onMessage.addListener(handleMessage);
+
+reanchorFromCurrentState();
+
+function hostnameFromUrl(url) {
   try {
-    ignoredSites = await chrome.storage.sync.get("ignoredSites");
-  } catch (error) {}
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.hostname.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
-chrome.runtime.onStartup.addListener(() => {
-  console.log("Extension has started up");
+async function reanchorFromCurrentState() {
+  try {
+    const win = await chrome.windows.getLastFocused({ populate: false });
+    const windowFocused = !!win && win.focused;
+    let hostname = null;
+    let tabId = null;
+    let windowId = win ? win.id : null;
 
-  initializeExtension();
-});
+    if (windowFocused) {
+      const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
+      if (tab && !tab.incognito) {
+        hostname = hostnameFromUrl(tab.url);
+        tabId = tab.id;
+      } else if (tab && tab.incognito) {
+        const settings = await getSettings();
+        if (!settings.ignoreInIncognito) {
+          hostname = hostnameFromUrl(tab.url);
+          tabId = tab.id;
+        }
+      }
+    }
+
+    let idle = false;
+    try {
+      const state = await chrome.idle.queryState(IDLE_DETECTION_SECONDS);
+      idle = state !== "active";
+    } catch {
+      idle = false;
+    }
+
+    activeSession = { hostname, tabId, windowId, startedAt: Date.now(), idle, windowFocused };
+  } catch {
+    activeSession = { hostname: null, tabId: null, windowId: null, startedAt: Date.now(), idle: false, windowFocused: true };
+  }
+}
+
+async function flush(now = Date.now()) {
+  const settings = await getSettings();
+  const wasCounting =
+    activeSession.hostname &&
+    activeSession.windowFocused &&
+    !activeSession.idle &&
+    !settings.ignoredSites.includes(activeSession.hostname);
+
+  if (wasCounting) {
+    const elapsedSec = Math.max(0, Math.round((now - activeSession.startedAt) / 1000));
+    if (elapsedSec > 0) {
+      const dateKey = todayKey();
+      const day = await getDayState(dateKey);
+      day.tracking.sites[activeSession.hostname] = (day.tracking.sites[activeSession.hostname] || 0) + elapsedSec;
+      day.tracking.total += elapsedSec;
+
+      const { siteJustExceeded, globalJustExceeded } = evaluateLimits(day, settings);
+      if (siteJustExceeded.length || globalJustExceeded) {
+        siteJustExceeded.forEach((h) => (day.blocked.sites[h] = true));
+        if (globalJustExceeded) day.blocked.global = true;
+        await saveDayState(dateKey, day);
+        notifyLimitReached(siteJustExceeded, globalJustExceeded);
+        await maybeKickActiveTab(day, settings);
+      } else {
+        await saveDayState(dateKey, day);
+      }
+    }
+  }
+
+  activeSession.startedAt = now;
+}
+
+async function maybeKickActiveTab(day, settings) {
+  if (!activeSession.hostname || activeSession.tabId == null) return;
+  const result = isBlocked(activeSession.hostname, day, settings);
+  if (!result.blocked) return;
+
+  try {
+    const tab = await chrome.tabs.get(activeSession.tabId);
+    const blockedUrl =
+      chrome.runtime.getURL("blocked/blocked.html") +
+      `?site=${encodeURIComponent(activeSession.hostname)}` +
+      `&reason=${encodeURIComponent(result.reason)}` +
+      `&from=${encodeURIComponent(tab.url)}`;
+    await chrome.tabs.update(activeSession.tabId, { url: blockedUrl });
+  } catch {
+    // Tab may no longer exist; nothing to do.
+  }
+}
+
+function notifyLimitReached(siteJustExceeded, globalJustExceeded) {
+  if (siteJustExceeded.length) {
+    for (const hostname of siteJustExceeded) {
+      chrome.notifications.create(`limit-site-${hostname}-${Date.now()}`, {
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("icon.png"),
+        title: "Daily limit reached",
+        message: `You've reached your daily time limit for ${hostname}.`,
+      });
+    }
+  }
+  if (globalJustExceeded) {
+    chrome.notifications.create(`limit-global-${Date.now()}`, {
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icon.png"),
+      title: "Daily limit reached",
+      message: "You've reached your overall daily browsing time limit.",
+    });
+  }
+}
+
+async function handleTabActivated({ tabId, windowId }) {
+  await flush();
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const settings = await getSettings();
+    const win = await chrome.windows.get(windowId);
+    const allowIncognito = tab.incognito ? !settings.ignoreInIncognito : true;
+    activeSession.hostname = allowIncognito ? hostnameFromUrl(tab.url) : null;
+    activeSession.tabId = tabId;
+    activeSession.windowId = windowId;
+    activeSession.windowFocused = win.focused;
+  } catch {
+    activeSession.hostname = null;
+    activeSession.tabId = null;
+  }
+}
+
+async function handleTabUpdated(tabId, changeInfo, tab) {
+  if (tabId !== activeSession.tabId) return;
+  if (!changeInfo.url) return;
+  await flush();
+  const settings = await getSettings();
+  const allowIncognito = tab.incognito ? !settings.ignoreInIncognito : true;
+  activeSession.hostname = allowIncognito ? hostnameFromUrl(changeInfo.url) : null;
+}
+
+async function handleTabRemoved(tabId) {
+  if (tabId !== activeSession.tabId) return;
+  await flush();
+  activeSession.hostname = null;
+  activeSession.tabId = null;
+}
+
+async function handleWindowFocusChanged(windowId) {
+  await flush();
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    activeSession.windowFocused = false;
+    activeSession.hostname = null;
+    activeSession.tabId = null;
+    return;
+  }
+  try {
+    const win = await chrome.windows.get(windowId);
+    activeSession.windowFocused = win.focused;
+    if (win.focused) {
+      const [tab] = await chrome.tabs.query({ active: true, windowId });
+      if (tab) {
+        const settings = await getSettings();
+        const allowIncognito = tab.incognito ? !settings.ignoreInIncognito : true;
+        activeSession.hostname = allowIncognito ? hostnameFromUrl(tab.url) : null;
+        activeSession.tabId = tab.id;
+        activeSession.windowId = windowId;
+      }
+    } else {
+      activeSession.hostname = null;
+      activeSession.tabId = null;
+    }
+  } catch {
+    activeSession.windowFocused = false;
+  }
+}
+
+async function handleIdleStateChanged(state) {
+  await flush();
+  activeSession.idle = state !== "active";
+}
+
+async function handleAlarm(alarm) {
+  if (alarm.name !== "heartbeat") return;
+  await flush();
+  await pruneOldDayKeys();
+}
+
+function handleMessage(message, sender, sendResponse) {
+  (async () => {
+    if (message?.type === "checkBlocked") {
+      await flush();
+      const settings = await getSettings();
+      const day = await getDayState();
+      sendResponse(isBlocked(message.hostname, day, settings));
+      return;
+    }
+
+    if (message?.type === "completeChallenge") {
+      const dateKey = todayKey();
+      const day = await getDayState(dateKey);
+      if (message.reason === "global") {
+        day.unlocked.global = true;
+      } else {
+        day.unlocked.sites[message.hostname] = true;
+      }
+      await saveDayState(dateKey, day);
+      sendResponse({ ok: true });
+      return;
+    }
+
+    sendResponse({ error: "unknown message type" });
+  })();
+
+  return true;
+}
