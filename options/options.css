@@ -26,6 +26,19 @@ body {
   font-size: 26px;
 }
 
+.overview-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: rgb(133, 133, 255);
+  font-size: 13px;
+  text-decoration: none;
+  border-bottom: 1px solid rgb(133, 133, 255);
+}
+
+.overview-link:hover {
+  color: rgb(165, 165, 255);
+}
+
 .card {
   background-color: rgb(30, 30, 30);
   border: 1px solid rgb(60, 60, 60);
@@ -233,4 +246,33 @@ footer button:hover {
 
 #add-limit:hover {
   background-color: rgb(40, 40, 50);
+}
+
+.limit-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  background-color: rgb(32, 32, 32);
+  color: rgb(190, 190, 190);
+  border: 1px solid rgb(70, 70, 70);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.preset-btn:hover {
+  border-color: rgb(133, 133, 255);
+  color: rgb(133, 133, 255);
+}
+
+.limit-preview {
+  color: rgb(150, 150, 150);
+  font-size: 12px;
+  margin-left: 4px;
 }

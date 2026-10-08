@@ -1,4 +1,5 @@
-import { getSettings, setSettings, normalizeHostname } from "../lib/storage.js";
+import { getSettings, setSettings, normalizeHostname, getKnownHostnames } from "../lib/storage.js";
+import { formatMinutes } from "../lib/time.js";
 
 document.addEventListener("DOMContentLoaded", async function () {
   const ignoreListInput = document.getElementById("ignore-url");
@@ -11,10 +12,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   const limitError = document.getElementById("limit-error");
   const addLimitButton = document.getElementById("add-limit");
   const siteLimitsList = document.getElementById("site-limits-list");
+  const limitPresets = document.getElementById("limit-presets");
+  const limitMinutesPreview = document.getElementById("limit-minutes-preview");
 
   const globalLimitEnabled = document.getElementById("global-limit-enabled");
   const globalLimitMinutes = document.getElementById("global-limit-minutes");
   const globalLimitError = document.getElementById("global-limit-error");
+  const globalLimitPresets = document.getElementById("global-limit-presets");
+  const globalLimitMinutesPreview = document.getElementById("global-limit-minutes-preview");
+
+  const knownHostsList = document.getElementById("known-hosts");
 
   const saveButton = document.getElementById("save-changes");
   const cancelButton = document.getElementById("cancel-changes");
@@ -88,7 +95,65 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
+  async function populateKnownHosts() {
+    const hostnames = await getKnownHostnames();
+    knownHostsList.innerHTML = "";
+    hostnames.forEach((hostname) => {
+      const option = document.createElement("option");
+      option.value = hostname;
+      knownHostsList.appendChild(option);
+    });
+  }
+
+  function updatePreview(input, previewEl) {
+    const minutes = Number(input.value);
+    previewEl.textContent = Number.isFinite(minutes) && minutes > 0 ? `= ${formatMinutes(minutes)}` : "";
+  }
+
+  function wirePresets(presetsEl, input, previewEl) {
+    presetsEl.querySelectorAll(".preset-btn").forEach((button) => {
+      button.addEventListener("click", function () {
+        input.value = button.dataset.minutes;
+        updatePreview(input, previewEl);
+        input.dispatchEvent(new Event("change"));
+      });
+    });
+    input.addEventListener("input", () => updatePreview(input, previewEl));
+  }
+
+  wirePresets(limitPresets, limitMinutesInput, limitMinutesPreview);
+  wirePresets(globalLimitPresets, globalLimitMinutes, globalLimitMinutesPreview);
+
   await loadOptions();
+  await populateKnownHosts();
+  updatePreview(limitMinutesInput, limitMinutesPreview);
+  updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
+
+  function addLimitFromInputs() {
+    limitError.textContent = "";
+
+    const hostname = normalizeHostname(limitUrlInput.value);
+    if (!hostname) {
+      limitError.textContent = "Enter a valid site (e.g. example.com).";
+      return;
+    }
+
+    const minutes = Number(limitMinutesInput.value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+      limitError.textContent = "Enter a whole number of minutes (1-1440).";
+      return;
+    }
+
+    const existing = Array.from(siteLimitsList.children);
+    const duplicate = existing.find((li) => li.dataset.site === hostname);
+    if (duplicate) duplicate.remove();
+
+    addSiteLimitItem(hostname, minutes);
+    limitUrlInput.value = "";
+    limitMinutesInput.value = "";
+    limitMinutesPreview.textContent = "";
+    showButtons();
+  }
 
   ignoreListInput.addEventListener("keydown", function (event) {
     if (event.key !== "Enter") return;
@@ -112,29 +177,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     showButtons();
   });
 
-  addLimitButton.addEventListener("click", function () {
-    limitError.textContent = "";
+  addLimitButton.addEventListener("click", addLimitFromInputs);
 
-    const hostname = normalizeHostname(limitUrlInput.value);
-    if (!hostname) {
-      limitError.textContent = "Enter a valid site (e.g. example.com).";
-      return;
-    }
-
-    const minutes = Number(limitMinutesInput.value);
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
-      limitError.textContent = "Enter a whole number of minutes (1-1440).";
-      return;
-    }
-
-    const existing = Array.from(siteLimitsList.children);
-    const duplicate = existing.find((li) => li.dataset.site === hostname);
-    if (duplicate) duplicate.remove();
-
-    addSiteLimitItem(hostname, minutes);
-    limitUrlInput.value = "";
-    limitMinutesInput.value = "";
-    showButtons();
+  [limitUrlInput, limitMinutesInput].forEach((input) => {
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      addLimitFromInputs();
+    });
   });
 
   ignoreIncognitoCheckbox.addEventListener("change", showButtons);
@@ -150,6 +200,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     limitError.textContent = "";
     globalLimitError.textContent = "";
     await loadOptions();
+    updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
     hideButtons();
   });
 
@@ -181,6 +232,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     await loadOptions();
+    updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
+    await populateKnownHosts();
     hideButtons();
   });
 });
