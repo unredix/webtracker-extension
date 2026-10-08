@@ -28,6 +28,11 @@ body {
   margin: 0 0 16px;
 }
 
+#status.status-warning {
+  border-color: rgb(224, 160, 48);
+  color: rgb(224, 160, 48);
+}
+
 .currentTime {
   color: white;
   text-align: center;

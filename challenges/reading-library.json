@@ -8,7 +8,8 @@
       "questions": [
         { "prompt": "What was the original planned mission length for the Voyager probes?", "choices": ["2 years", "5 years", "10 years", "20 years"], "correctIndex": 1 },
         { "prompt": "What does each Voyager probe carry?", "choices": ["A time capsule of seeds", "A Golden Record", "A second onboard computer", "A photograph of Earth only"], "correctIndex": 1 },
-        { "prompt": "What milestone did Voyager 1 reach in 2012?", "choices": ["It landed on Titan", "It entered interstellar space", "It lost contact with Earth", "It returned to Earth orbit"], "correctIndex": 1 }
+        { "prompt": "What milestone did Voyager 1 reach in 2012?", "choices": ["It landed on Titan", "It entered interstellar space", "It lost contact with Earth", "It returned to Earth orbit"], "correctIndex": 1 },
+        { "prompt": "Which planets were the Voyager probes originally sent to study?", "choices": ["Mars and Venus", "Jupiter and Saturn", "Uranus and Neptune", "Earth and the Moon"], "correctIndex": 1 }
       ]
     },
     {
@@ -19,7 +20,8 @@
       "questions": [
         { "prompt": "In which country was the Library of Alexandria located?", "choices": ["Greece", "Egypt", "Turkey", "Italy"], "correctIndex": 1 },
         { "prompt": "What was the library's stated goal?", "choices": ["To train soldiers", "To collect all the world's knowledge", "To mint currency", "To house a royal court"], "correctIndex": 1 },
-        { "prompt": "According to the passage, how did the library most likely decline?", "choices": ["A single dramatic fire", "Damage from several events over centuries", "It was relocated intact", "It was never actually built"], "correctIndex": 1 }
+        { "prompt": "According to the passage, how did the library most likely decline?", "choices": ["A single dramatic fire", "Damage from several events over centuries", "It was relocated intact", "It was never actually built"], "correctIndex": 1 },
+        { "prompt": "In which century BCE was the library founded?", "choices": ["1st century BCE", "3rd century BCE", "5th century BCE", "10th century BCE"], "correctIndex": 1 }
       ]
     },
     {
@@ -30,7 +32,8 @@
       "questions": [
         { "prompt": "What are the color-changing cells in octopus skin called?", "choices": ["Iridophores", "Chromatophores", "Melanocytes", "Photocytes"], "correctIndex": 1 },
         { "prompt": "What causes a chromatophore's pigment sac to become more visible?", "choices": ["Water temperature changes", "Surrounding muscles contracting", "Exposure to sunlight", "The octopus eating"], "correctIndex": 1 },
-        { "prompt": "What do iridophores do?", "choices": ["Store food", "Reflect light to create iridescent colors", "Produce ink", "Sense vibrations"], "correctIndex": 1 }
+        { "prompt": "What do iridophores do?", "choices": ["Store food", "Reflect light to create iridescent colors", "Produce ink", "Sense vibrations"], "correctIndex": 1 },
+        { "prompt": "What do octopuses use their color-changing ability for, according to the passage?", "choices": ["Only to attract mates", "Camouflage and communication", "Regulating body temperature", "Digesting food faster"], "correctIndex": 1 }
       ]
     },
     {
@@ -41,7 +44,8 @@
       "questions": [
         { "prompt": "Why is ice less dense than liquid water?", "choices": ["It contains trapped air bubbles", "Its molecules form a lattice that holds them farther apart", "It is colder and therefore lighter", "It contains fewer molecules overall"], "correctIndex": 1 },
         { "prompt": "By approximately how much is ice less dense than liquid water?", "choices": ["1%", "9%", "25%", "50%"], "correctIndex": 1 },
-        { "prompt": "Why does ice floating matter for aquatic life?", "choices": ["It reflects sunlight away from fish", "It forms an insulating layer so water below stays liquid", "It raises the water's oxygen level", "It prevents evaporation in summer"], "correctIndex": 1 }
+        { "prompt": "Why does ice floating matter for aquatic life?", "choices": ["It reflects sunlight away from fish", "It forms an insulating layer so water below stays liquid", "It raises the water's oxygen level", "It prevents evaporation in summer"], "correctIndex": 1 },
+        { "prompt": "What makes water unusual compared to most other substances?", "choices": ["It is denser as a solid than as a liquid", "It is less dense as a solid than as a liquid", "It has no measurable density", "It becomes denser as it warms"], "correctIndex": 1 }
       ]
     },
     {
@@ -52,7 +56,8 @@
       "questions": [
         { "prompt": "Around what year did Gutenberg develop his printing press?", "choices": ["1200", "1440", "1600", "1800"], "correctIndex": 1 },
         { "prompt": "What made Gutenberg's press different from earlier methods?", "choices": ["It used movable metal type", "It only printed pictures", "It required no ink", "It was operated by water power"], "correctIndex": 0 },
-        { "prompt": "What effect did the printing press have on Europe?", "choices": ["It raised the cost of books", "It helped spread literacy", "It ended handwriting entirely", "It had little lasting impact"], "correctIndex": 1 }
+        { "prompt": "What effect did the printing press have on Europe?", "choices": ["It raised the cost of books", "It helped spread literacy", "It ended handwriting entirely", "It had little lasting impact"], "correctIndex": 1 },
+        { "prompt": "What was Gutenberg's most famous printed work?", "choices": ["The Magna Carta", "The Gutenberg Bible", "The Canterbury Tales", "The Domesday Book"], "correctIndex": 1 }
       ]
     },
     {
@@ -63,7 +68,80 @@
       "questions": [
         { "prompt": "What is the boundary around a black hole called?", "choices": ["The event horizon", "The singularity line", "The gravity wall", "The light barrier"], "correctIndex": 0 },
         { "prompt": "How do black holes typically form?", "choices": ["From cooling planets", "From the collapse of massive stars", "From colliding asteroids", "From solar flares"], "correctIndex": 1 },
-        { "prompt": "How do scientists usually detect black holes?", "choices": ["By flying probes into them", "By observing their effects on nearby matter", "By measuring their sound waves", "By weighing them directly"], "correctIndex": 1 }
+        { "prompt": "How do scientists usually detect black holes?", "choices": ["By flying probes into them", "By observing their effects on nearby matter", "By measuring their sound waves", "By weighing them directly"], "correctIndex": 1 },
+        { "prompt": "What happens once something crosses a black hole's event horizon?", "choices": ["It can still escape with enough speed", "It cannot escape, not even light", "It is instantly destroyed by heat", "It passes through unaffected"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "space-03",
+      "theme": "Space",
+      "title": "The Discovery of Exoplanets",
+      "text": "An exoplanet is a planet that orbits a star other than the Sun. For centuries, astronomers suspected other stars might have planets, but the first confirmed exoplanet orbiting a Sun-like star, 51 Pegasi b, was not detected until 1995. Many exoplanets are found using the transit method, which measures the tiny dip in a star's brightness as a planet passes in front of it. Thousands of exoplanets have since been confirmed, including some located in the 'habitable zone,' the range of distances from a star where temperatures could allow liquid water to exist.",
+      "questions": [
+        { "prompt": "What is an exoplanet?", "choices": ["A planet without a moon", "A planet that orbits a star other than the Sun", "Any planet larger than Earth", "A moon that orbits a planet"], "correctIndex": 1 },
+        { "prompt": "In what year was 51 Pegasi b detected?", "choices": ["1969", "1995", "2009", "2020"], "correctIndex": 1 },
+        { "prompt": "How does the transit method detect exoplanets?", "choices": ["By measuring a star's temperature directly", "By measuring a dip in a star's brightness as a planet passes in front of it", "By listening for radio signals", "By photographing the planet directly"], "correctIndex": 1 },
+        { "prompt": "What is the 'habitable zone'?", "choices": ["The area of a solar system closest to its star", "The range of distances from a star where liquid water could exist", "The region where no planets can form", "The outer edge of a galaxy"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "history-03",
+      "theme": "History",
+      "title": "The Rosetta Stone",
+      "text": "The Rosetta Stone is a granodiorite slab inscribed with the same decree in three scripts: Egyptian hieroglyphs, Egyptian Demotic script, and Ancient Greek. It was carved in 196 BCE and rediscovered by French soldiers in 1799 near the town of Rosetta in Egypt. Because scholars could already read Ancient Greek, the stone provided the key to finally deciphering Egyptian hieroglyphs, a writing system that had been unreadable for centuries. The French scholar Jean-François Champollion completed the decipherment in the 1820s, opening the door to modern Egyptology.",
+      "questions": [
+        { "prompt": "How many scripts are inscribed on the Rosetta Stone?", "choices": ["One", "Two", "Three", "Four"], "correctIndex": 2 },
+        { "prompt": "Where was the Rosetta Stone rediscovered?", "choices": ["Near Rosetta, Egypt", "In Athens, Greece", "In Rome, Italy", "In Baghdad, Iraq"], "correctIndex": 0 },
+        { "prompt": "Why was the Greek text on the stone so important?", "choices": ["It was the oldest known Greek text", "Scholars could already read Greek, which helped unlock the hieroglyphs", "It contained a map to lost treasure", "It was written in gold ink"], "correctIndex": 1 },
+        { "prompt": "Who completed the decipherment of the hieroglyphs?", "choices": ["Howard Carter", "Jean-François Champollion", "Napoleon Bonaparte", "Flinders Petrie"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "nature-02",
+      "theme": "Nature",
+      "title": "Why Leaves Change Color in Autumn",
+      "text": "Leaves appear green during spring and summer because they are full of chlorophyll, the pigment plants use to capture sunlight for photosynthesis. As days shorten in autumn, trees produce less chlorophyll, and the green color fades. This reveals other pigments that were present in the leaf all along, such as yellow and orange carotenoids. Some trees also produce new red and purple pigments called anthocyanins in autumn, often triggered by bright sunny days combined with cool nights. Eventually, a layer of cells seals off each leaf's stem, and the leaf falls.",
+      "questions": [
+        { "prompt": "Why are leaves green in spring and summer?", "choices": ["They contain chlorophyll for photosynthesis", "They absorb only green light", "They are coated in pollen", "They lack any pigment at all"], "correctIndex": 0 },
+        { "prompt": "What causes the green color to fade in autumn?", "choices": ["Leaves produce less chlorophyll as days shorten", "The leaves freeze solid", "Insects eat the chlorophyll", "The tree stops growing roots"], "correctIndex": 0 },
+        { "prompt": "What are carotenoids, according to the passage?", "choices": ["Pigments created only in winter", "Yellow and orange pigments already present in the leaf", "A type of fungus on leaves", "Chemicals that make leaves fall faster"], "correctIndex": 1 },
+        { "prompt": "What conditions tend to trigger anthocyanin production?", "choices": ["Constant rain and fog", "Bright sunny days combined with cool nights", "Freezing temperatures all day", "Total darkness for a week"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "nature-03",
+      "theme": "Nature",
+      "title": "The Migration of Monarch Butterflies",
+      "text": "Each autumn, monarch butterflies in eastern North America fly up to 3,000 miles to reach overwintering forests in central Mexico, a journey no single butterfly completes twice. The monarchs that migrate are several generations removed from the ones that made the trip the previous year, yet they return to the same forests their ancestors used, guided by an internal sense of direction linked to the sun's position and Earth's magnetic field. In spring, the surviving butterflies begin the journey north, laying eggs on milkweed plants along the way before a new generation continues onward.",
+      "questions": [
+        { "prompt": "How far can monarch butterflies travel during their autumn migration?", "choices": ["Up to 300 miles", "Up to 3,000 miles", "Up to 30,000 miles", "Up to 300,000 miles"], "correctIndex": 1 },
+        { "prompt": "Where do eastern North American monarchs spend the winter?", "choices": ["Central Mexico", "Southern Canada", "The Gulf of Mexico islands", "Northern Florida"], "correctIndex": 0 },
+        { "prompt": "What is notable about the butterflies that complete the full migration?", "choices": ["The same individual makes the round trip every year", "No single butterfly completes the round trip twice", "They migrate alone with no navigation cues", "They travel only at night"], "correctIndex": 1 },
+        { "prompt": "What plant do monarchs rely on to lay their eggs during the journey north?", "choices": ["Milkweed", "Sunflowers", "Clover", "Oak leaves"], "correctIndex": 0 }
+      ]
+    },
+    {
+      "id": "science-02",
+      "theme": "Science",
+      "title": "How Vaccines Train the Immune System",
+      "text": "Vaccines work by exposing the immune system to a harmless version or piece of a pathogen, such as a weakened virus or a fragment of its protein coat, without causing the disease itself. In response, the immune system produces antibodies and creates memory cells that 'remember' the pathogen. If the real pathogen is encountered later, these memory cells allow the immune system to respond much faster and more effectively than it would on a first exposure, often preventing illness entirely or making it far milder. Some vaccines require multiple doses because booster shots strengthen and prolong this memory response.",
+      "questions": [
+        { "prompt": "What does a vaccine expose the immune system to?", "choices": ["A full-strength, untreated pathogen", "A harmless version or piece of a pathogen", "Antibiotics", "A sample of the patient's own blood"], "correctIndex": 1 },
+        { "prompt": "What do memory cells do?", "choices": ["Destroy the immune system's own cells", "Remember the pathogen for a faster future response", "Produce the original disease symptoms", "Prevent antibodies from forming"], "correctIndex": 1 },
+        { "prompt": "What is the benefit of a faster immune response on re-exposure?", "choices": ["It often prevents illness or makes it milder", "It always causes a stronger fever", "It has no real effect", "It only works against bacteria, not viruses"], "correctIndex": 0 },
+        { "prompt": "Why do some vaccines require multiple doses?", "choices": ["Because the first dose is usually fake", "Booster shots strengthen and prolong the memory response", "To test for allergies before the real dose", "Because one dose would cause the disease"], "correctIndex": 1 }
+      ]
+    },
+    {
+      "id": "science-03",
+      "theme": "Science",
+      "title": "The Discovery of Penicillin",
+      "text": "In 1928, Scottish scientist Alexander Fleming returned from vacation to find that a mold called Penicillium had contaminated one of his bacterial cultures and killed the bacteria around it. Fleming identified the mold's active substance as penicillin, but it took over a decade, and the work of scientists Howard Florey and Ernst Chain, to purify it and produce enough for medical use. Penicillin became the first widely used antibiotic, dramatically reducing deaths from bacterial infections during World War II and afterward. Fleming, Florey, and Chain shared the 1945 Nobel Prize in Physiology or Medicine for this work.",
+      "questions": [
+        { "prompt": "What had contaminated Fleming's bacterial culture?", "choices": ["A type of mold called Penicillium", "A strain of E. coli", "A rare virus", "A chemical spill"], "correctIndex": 0 },
+        { "prompt": "What did the mold do to the bacteria around it?", "choices": ["Caused it to grow faster", "Killed it", "Turned it a different color with no other effect", "Had no effect at all"], "correctIndex": 1 },
+        { "prompt": "Who helped purify penicillin for medical use?", "choices": ["Marie Curie and Niels Bohr", "Howard Florey and Ernst Chain", "Louis Pasteur and Robert Koch", "Jonas Salk and Albert Sabin"], "correctIndex": 1 },
+        { "prompt": "What recognition did Fleming, Florey, and Chain receive in 1945?", "choices": ["Knighthood from the Queen only", "The Nobel Prize in Physiology or Medicine", "The Nobel Peace Prize", "An honorary degree with no prize"], "correctIndex": 1 }
       ]
     }
   ]

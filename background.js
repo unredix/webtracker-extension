@@ -7,7 +7,7 @@ import {
   getActiveSession,
   saveActiveSession,
 } from "./lib/storage.js";
-import { isBlocked, evaluateLimits } from "./lib/limits.js";
+import { isBlocked, evaluateLimits, evaluateWarnings } from "./lib/limits.js";
 
 const IDLE_DETECTION_SECONDS = 15;
 const MAX_FLUSH_SECONDS = 600; // cap a single flush (e.g. after OS sleep) so a long gap can't over-attribute time
@@ -117,14 +117,23 @@ async function flush(now = Date.now()) {
       day.tracking.total += elapsedSec;
 
       const { siteJustExceeded, globalJustExceeded } = evaluateLimits(day, settings);
+      siteJustExceeded.forEach((h) => (day.blocked.sites[h] = true));
+      if (globalJustExceeded) day.blocked.global = true;
+
+      // Checked after the block mutations above, so a span that jumps straight past
+      // 100% in one flush is recorded as blocked, not warned.
+      const { siteJustWarned, globalJustWarned } = evaluateWarnings(day, settings);
+      siteJustWarned.forEach((h) => (day.warned.sites[h] = true));
+      if (globalJustWarned) day.warned.global = true;
+
+      await saveDayState(dateKey, day);
+
       if (siteJustExceeded.length || globalJustExceeded) {
-        siteJustExceeded.forEach((h) => (day.blocked.sites[h] = true));
-        if (globalJustExceeded) day.blocked.global = true;
-        await saveDayState(dateKey, day);
         notifyLimitReached(siteJustExceeded, globalJustExceeded);
         await maybeKickActiveTab(day, settings);
-      } else {
-        await saveDayState(dateKey, day);
+      }
+      if (siteJustWarned.length || globalJustWarned) {
+        notifyApproachingLimit(siteJustWarned, globalJustWarned, settings);
       }
     }
   }
@@ -168,6 +177,26 @@ function notifyLimitReached(siteJustExceeded, globalJustExceeded) {
       iconUrl: chrome.runtime.getURL("icon.png"),
       title: "Daily limit reached",
       message: "You've reached your overall daily browsing time limit.",
+    });
+  }
+}
+
+function notifyApproachingLimit(siteJustWarned, globalJustWarned, settings) {
+  for (const hostname of siteJustWarned) {
+    const limitMinutes = settings.siteLimits[hostname];
+    chrome.notifications.create(`warn-site-${hostname}-${Date.now()}`, {
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icon.png"),
+      title: "Approaching daily limit",
+      message: `You're close to your ${limitMinutes}-minute daily limit for ${hostname}.`,
+    });
+  }
+  if (globalJustWarned) {
+    chrome.notifications.create(`warn-global-${Date.now()}`, {
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icon.png"),
+      title: "Approaching daily limit",
+      message: `You're close to your ${settings.globalDailyLimitMinutes}-minute overall daily browsing limit.`,
     });
   }
 }

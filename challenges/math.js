@@ -1,25 +1,33 @@
-export const REQUIRED_CORRECT = 3;
+export const REQUIRED_CORRECT = 5;
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 export function generateProblem() {
-  const operators = ["+", "-", "×"];
+  const operators = ["+", "-", "×", "÷"];
   const operator = operators[Math.floor(Math.random() * operators.length)];
 
-  let a = Math.floor(Math.random() * 20) + 1;
-  let b = Math.floor(Math.random() * 20) + 1;
+  let a;
+  let b;
+  let answer;
 
   if (operator === "×") {
-    a = Math.floor(Math.random() * 12) + 1;
-    b = Math.floor(Math.random() * 12) + 1;
+    a = randomInt(3, 15);
+    b = randomInt(3, 15);
+    answer = a * b;
+  } else if (operator === "÷") {
+    b = randomInt(2, 12);
+    answer = randomInt(2, 12);
+    a = b * answer;
+  } else {
+    a = randomInt(10, 60);
+    b = randomInt(10, 60);
+    if (operator === "-" && b > a) {
+      [a, b] = [b, a];
+    }
+    answer = operator === "+" ? a + b : a - b;
   }
-
-  if (operator === "-" && b > a) {
-    [a, b] = [b, a];
-  }
-
-  let answer;
-  if (operator === "+") answer = a + b;
-  else if (operator === "-") answer = a - b;
-  else answer = a * b;
 
   return { prompt: `${a} ${operator} ${b}`, answer };
 }
