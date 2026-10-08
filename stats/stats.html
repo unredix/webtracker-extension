@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weekly overview</title>
+    <link rel="stylesheet" href="stats.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="title">
+        <h1>Weekly Overview</h1>
+        <p class="subtitle">Last 7 days of browsing activity</p>
+      </div>
+
+      <div class="stat-row" id="stat-row"></div>
+
+      <section class="card">
+        <h2>Time per day</h2>
+        <div class="chart-wrap" id="daily-chart"></div>
+      </section>
+
+      <section class="card">
+        <h2>Top sites this week</h2>
+        <div class="chart-wrap" id="sites-chart"></div>
+      </section>
+    </div>
+    <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+    <script src="stats.js" type="module"></script>
+  </body>
+</html>

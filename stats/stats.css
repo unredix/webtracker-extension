@@ -1,0 +1,154 @@
+:root {
+  border: none;
+}
+
+body {
+  background-color: rgb(24, 24, 24);
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+  box-sizing: border-box;
+}
+
+.title {
+  color: white;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.title h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: rgb(190, 190, 190);
+  font-size: 14px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.stat-tile {
+  background-color: rgb(30, 30, 30);
+  border: 1px solid rgb(60, 60, 60);
+  border-radius: 8px;
+  padding: 16px 14px;
+}
+
+.stat-tile .stat-label {
+  color: rgb(150, 150, 150);
+  font-size: 12px;
+  margin: 0 0 6px;
+}
+
+.stat-tile .stat-value {
+  color: white;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.card {
+  background-color: rgb(30, 30, 30);
+  border: 1px solid rgb(60, 60, 60);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  font-size: 16px;
+  margin: 0 0 16px;
+  color: white;
+  text-decoration: underline;
+  text-decoration-color: rgb(133, 133, 255);
+  text-underline-offset: 4px;
+}
+
+.chart-wrap {
+  width: 100%;
+}
+
+.chart-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.bar {
+  fill: rgb(133, 133, 255);
+  transition: fill 0.1s ease;
+}
+
+.bar:hover,
+.bar:focus {
+  fill: rgb(165, 165, 255);
+}
+
+.bar-group {
+  outline: none;
+  cursor: pointer;
+}
+
+.bar-group:focus-visible .bar {
+  fill: rgb(165, 165, 255);
+}
+
+.chart-value-label {
+  fill: rgb(190, 190, 190);
+  font-size: 11px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.chart-axis-label {
+  fill: rgb(140, 140, 140);
+  font-size: 11px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.chart-baseline {
+  stroke: rgb(70, 70, 70);
+  stroke-width: 1;
+}
+
+.empty-note {
+  color: rgb(150, 150, 150);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.tooltip {
+  position: fixed;
+  pointer-events: none;
+  background-color: rgb(24, 24, 24);
+  border: 1px solid rgb(133, 133, 255);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: white;
+  font-size: 12px;
+  z-index: 10;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+}
+
+.tooltip .tooltip-value {
+  color: rgb(133, 133, 255);
+  font-weight: 600;
+}
+
+.tooltip[hidden] {
+  display: none;
+}
