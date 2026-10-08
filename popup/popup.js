@@ -1,5 +1,5 @@
 import { getSettings, getDayState, getActiveSession } from "../lib/storage.js";
-import { isBlocked } from "../lib/limits.js";
+import { isBlocked, WARNING_THRESHOLD_RATIO } from "../lib/limits.js";
 import { formatHMS } from "../lib/time.js";
 
 const statusEl = document.getElementById("status");
@@ -33,24 +33,40 @@ async function render() {
 
   const settings = await getSettings();
   const day = await getDayState();
-
-  if (settings.ignoredSites.includes(currentHostname)) {
-    showStatus("This site is on your ignore list — not tracked.");
-  } else {
-    const result = isBlocked(currentHostname, day, settings);
-    if (result.blocked) {
-      showStatus("Daily limit reached — complete a challenge to continue.");
-    } else {
-      hideStatus();
-    }
-  }
+  const live = await liveEstimateSeconds();
 
   const storedSeconds = day.tracking.sites[currentHostname] || 0;
-  const elapsedSeconds = storedSeconds + (await liveEstimateSeconds());
+  const elapsedSeconds = storedSeconds + live;
+  const liveTotalSeconds = day.tracking.total + live;
+
   const limitMinutes = settings.siteLimits[currentHostname];
   timeEl.textContent = limitMinutes
     ? `${formatHMS(elapsedSeconds)} / ${formatHMS(limitMinutes * 60)}`
     : formatHMS(elapsedSeconds);
+
+  if (settings.ignoredSites.includes(currentHostname)) {
+    showStatus("This site is on your ignore list — not tracked.");
+    return;
+  }
+
+  const result = isBlocked(currentHostname, day, settings);
+  if (result.blocked) {
+    showStatus("Daily limit reached — complete a challenge to continue.");
+    return;
+  }
+
+  const siteNearLimit = limitMinutes && elapsedSeconds >= limitMinutes * 60 * WARNING_THRESHOLD_RATIO;
+  const globalNearLimit =
+    settings.globalDailyLimitMinutes &&
+    liveTotalSeconds >= settings.globalDailyLimitMinutes * 60 * WARNING_THRESHOLD_RATIO;
+
+  if (siteNearLimit) {
+    showStatus(`Approaching your ${limitMinutes}-minute daily limit for this site.`, "warning");
+  } else if (globalNearLimit) {
+    showStatus("Approaching your overall daily browsing limit.", "warning");
+  } else {
+    hideStatus();
+  }
 }
 
 // The background worker only writes accumulated time to storage on discrete
@@ -64,12 +80,14 @@ async function liveEstimateSeconds() {
   return Math.max(0, (Date.now() - session.startedAt) / 1000);
 }
 
-function showStatus(message) {
+function showStatus(message, variant = "info") {
   statusEl.textContent = message;
   statusEl.style.display = "block";
+  statusEl.classList.toggle("status-warning", variant === "warning");
 }
 
 function hideStatus() {
   statusEl.textContent = "";
   statusEl.style.display = "none";
+  statusEl.classList.remove("status-warning");
 }

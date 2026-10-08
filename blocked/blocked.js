@@ -90,7 +90,7 @@ function submitMathAnswer() {
   }
 }
 
-const REQUIRED_READING_CORRECT = 2;
+const READING_PASS_RATIO = 0.75;
 let currentPassage = null;
 let readingLibrary = null;
 
@@ -144,10 +144,11 @@ readingSubmit.addEventListener("click", () => {
     if (selected && Number(selected.value) === question.correctIndex) correctCount += 1;
   });
 
-  if (correctCount >= REQUIRED_READING_CORRECT) {
+  const requiredCorrect = Math.ceil(currentPassage.questions.length * READING_PASS_RATIO);
+  if (correctCount >= requiredCorrect) {
     completeChallenge();
   } else {
-    readingFeedback.textContent = `You got ${correctCount} of ${currentPassage.questions.length} right. Try another passage.`;
+    readingFeedback.textContent = `You got ${correctCount} of ${currentPassage.questions.length} right (need ${requiredCorrect}). Try another passage.`;
   }
 });
 
