@@ -3,6 +3,7 @@ import { generateProblem, REQUIRED_CORRECT } from "../challenges/math.js";
 const params = new URLSearchParams(location.search);
 const site = params.get("site") || "";
 const reason = params.get("reason") || "site";
+const period = params.get("period") || "day";
 const from = params.get("from") || (site ? `https://${site}/` : "about:blank");
 
 const heading = document.getElementById("heading");
@@ -26,12 +27,20 @@ const readingSubmit = document.getElementById("reading-submit");
 const readingReroll = document.getElementById("reading-reroll");
 const readingFeedback = document.getElementById("reading-feedback");
 
-heading.textContent =
-  reason === "global" ? "Daily browsing limit reached" : `Daily limit reached for ${site}`;
-subheading.textContent =
-  reason === "global"
-    ? "Complete a quick challenge to keep browsing for the rest of today."
-    : `Complete a quick challenge to unlock ${site} for the rest of today.`;
+const PERIOD_LABEL = { day: "Daily", week: "Weekly", month: "Monthly", schedule: "Scheduled access" };
+const periodLabel = PERIOD_LABEL[period] || "Daily";
+
+if (period === "schedule") {
+  heading.textContent = `${site} is outside its allowed hours`;
+  subheading.textContent = `Complete a quick challenge to unlock ${site} for the rest of today anyway.`;
+} else {
+  heading.textContent =
+    reason === "global" ? `${periodLabel} browsing limit reached` : `${periodLabel} limit reached for ${site}`;
+  subheading.textContent =
+    reason === "global"
+      ? "Complete a quick challenge to keep browsing for the rest of today."
+      : `Complete a quick challenge to unlock ${site} for the rest of today.`;
+}
 
 chooseMathButton.addEventListener("click", () => {
   choiceSection.hidden = true;

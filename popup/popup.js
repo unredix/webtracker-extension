@@ -6,6 +6,8 @@ const statusEl = document.getElementById("status");
 const siteEl = document.getElementById("cSite");
 const timeEl = document.getElementById("cTime");
 
+const PERIOD_LABEL = { day: "Daily", week: "Weekly", month: "Monthly" };
+
 let currentHostname = null;
 let tickInterval = null;
 
@@ -51,8 +53,32 @@ async function render() {
 
   const result = isBlocked(currentHostname, day, settings);
   if (result.blocked) {
-    showStatus("Daily limit reached — complete a challenge to continue.");
+    const message =
+      result.period === "schedule"
+        ? "Outside allowed hours — complete a challenge to continue."
+        : `${PERIOD_LABEL[result.period] || "Daily"} limit reached — complete a challenge to continue.`;
+    showStatus(message);
     return;
+  }
+
+  const graceSeconds = (settings.graceMinutes || 0) * 60;
+  if (graceSeconds > 0) {
+    if (limitMinutes) {
+      const limitSeconds = limitMinutes * 60;
+      if (elapsedSeconds >= limitSeconds && elapsedSeconds < limitSeconds + graceSeconds) {
+        const remaining = Math.ceil((limitSeconds + graceSeconds - elapsedSeconds) / 60);
+        showStatus(`Limit reached — this site blocks in ${remaining} more minute${remaining === 1 ? "" : "s"}.`, "grace");
+        return;
+      }
+    }
+    if (settings.globalDailyLimitMinutes) {
+      const globalLimitSeconds = settings.globalDailyLimitMinutes * 60;
+      if (liveTotalSeconds >= globalLimitSeconds && liveTotalSeconds < globalLimitSeconds + graceSeconds) {
+        const remaining = Math.ceil((globalLimitSeconds + graceSeconds - liveTotalSeconds) / 60);
+        showStatus(`Daily limit reached — browsing blocks in ${remaining} more minute${remaining === 1 ? "" : "s"}.`, "grace");
+        return;
+      }
+    }
   }
 
   const siteNearLimit = limitMinutes && elapsedSeconds >= limitMinutes * 60 * WARNING_THRESHOLD_RATIO;
@@ -84,10 +110,11 @@ function showStatus(message, variant = "info") {
   statusEl.textContent = message;
   statusEl.style.display = "block";
   statusEl.classList.toggle("status-warning", variant === "warning");
+  statusEl.classList.toggle("status-grace", variant === "grace");
 }
 
 function hideStatus() {
   statusEl.textContent = "";
   statusEl.style.display = "none";
-  statusEl.classList.remove("status-warning");
+  statusEl.classList.remove("status-warning", "status-grace");
 }

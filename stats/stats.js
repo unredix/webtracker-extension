@@ -1,5 +1,6 @@
-import { getRecentDayStates } from "../lib/storage.js";
+import { getRecentDayStates, getSettings } from "../lib/storage.js";
 import { formatCompact, formatHMS } from "../lib/time.js";
+import { computeUnderLimitStreak } from "../lib/limits.js";
 
 const DAYS = 7;
 const BAR_RADIUS = 4;
@@ -13,7 +14,8 @@ const tooltipEl = document.getElementById("tooltip");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const days = await getRecentDayStates(DAYS);
-  renderStatTiles(days);
+  const settings = await getSettings();
+  renderStatTiles(days, settings);
   renderDailyChart(days);
   renderSitesChart(days);
 });
@@ -27,7 +29,7 @@ function weekdayLabel(dateKey) {
   return dateFromKey(dateKey).toLocaleDateString(undefined, { weekday: "short" });
 }
 
-function renderStatTiles(days) {
+function renderStatTiles(days, settings) {
   const dailyTotals = days.map((d) => d.state.tracking.total);
   const weekTotal = dailyTotals.reduce((sum, v) => sum + v, 0);
   const dailyAverage = weekTotal / DAYS;
@@ -47,11 +49,15 @@ function renderStatTiles(days) {
     return count + siteBlocks + (state.blocked.global ? 1 : 0);
   }, 0);
 
+  const streak = computeUnderLimitStreak(days, settings);
+  const streakLabel = settings.globalDailyLimitMinutes ? `${streak} day${streak === 1 ? "" : "s"}` : "—";
+
   const tiles = [
     { label: "Total this week", value: formatCompact(weekTotal) },
     { label: "Daily average", value: formatCompact(dailyAverage) },
     { label: "Busiest day", value: busiestLabel },
     { label: "Times blocked", value: String(timesBlocked) },
+    { label: "Under-limit streak", value: streakLabel },
   ];
 
   statRow.innerHTML = "";

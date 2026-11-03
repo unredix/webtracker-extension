@@ -34,13 +34,18 @@
         </div>
       </section>
       <section class="card">
-        <h2>Per-site daily limits</h2>
+        <h2>Per-site limits</h2>
         <div class="ignore">
           <div class="ignore-input">
             <p>Add a site limit</p>
             <div class="limit-row">
               <input type="text" name="limit-url" id="limit-url" placeholder="example.com" list="known-hosts" />
               <input type="number" name="limit-minutes" id="limit-minutes" placeholder="Minutes" min="1" max="1440" />
+              <select id="limit-period">
+                <option value="day">per day</option>
+                <option value="week">per week</option>
+                <option value="month">per month</option>
+              </select>
               <button type="button" id="add-limit">Add</button>
             </div>
             <div class="limit-presets" id="limit-presets">
@@ -58,26 +63,14 @@
         </div>
       </section>
       <section class="card">
-        <h2>Global daily limit</h2>
-        <div class="ignore-input">
+        <h2>Global limits</h2>
+        <div class="global-limit-row">
           <div class="checkbox-row">
-            <input
-              type="checkbox"
-              name="global-limit-enabled"
-              id="global-limit-enabled"
-              class="checkbox-option"
-            />
-            <label for="global-limit-enabled">Enable an overall daily browsing limit</label>
+            <input type="checkbox" name="global-limit-enabled" id="global-limit-enabled" class="checkbox-option" />
+            <label for="global-limit-enabled">Daily</label>
           </div>
           <div class="limit-row">
-            <input
-              type="number"
-              name="global-limit-minutes"
-              id="global-limit-minutes"
-              placeholder="Minutes"
-              min="1"
-              max="1440"
-            />
+            <input type="number" name="global-limit-minutes" id="global-limit-minutes" placeholder="Minutes" min="1" max="1440" />
           </div>
           <div class="limit-presets" id="global-limit-presets">
             <button type="button" class="preset-btn" data-minutes="60">1h</button>
@@ -86,7 +79,66 @@
             <button type="button" class="preset-btn" data-minutes="240">4h</button>
             <span class="limit-preview" id="global-limit-minutes-preview"></span>
           </div>
-          <p class="field-error" id="global-limit-error"></p>
+        </div>
+        <div class="global-limit-row">
+          <div class="checkbox-row">
+            <input type="checkbox" name="global-weekly-limit-enabled" id="global-weekly-limit-enabled" class="checkbox-option" />
+            <label for="global-weekly-limit-enabled">Weekly</label>
+          </div>
+          <div class="limit-row">
+            <input type="number" name="global-weekly-limit-minutes" id="global-weekly-limit-minutes" placeholder="Minutes" min="1" max="10080" />
+          </div>
+          <div class="limit-presets" id="global-weekly-limit-presets">
+            <button type="button" class="preset-btn" data-minutes="600">10h</button>
+            <button type="button" class="preset-btn" data-minutes="1200">20h</button>
+            <button type="button" class="preset-btn" data-minutes="1800">30h</button>
+            <span class="limit-preview" id="global-weekly-limit-minutes-preview"></span>
+          </div>
+        </div>
+        <div class="global-limit-row">
+          <div class="checkbox-row">
+            <input type="checkbox" name="global-monthly-limit-enabled" id="global-monthly-limit-enabled" class="checkbox-option" />
+            <label for="global-monthly-limit-enabled">Monthly</label>
+          </div>
+          <div class="limit-row">
+            <input type="number" name="global-monthly-limit-minutes" id="global-monthly-limit-minutes" placeholder="Minutes" min="1" max="44640" />
+          </div>
+          <div class="limit-presets" id="global-monthly-limit-presets">
+            <button type="button" class="preset-btn" data-minutes="3000">50h</button>
+            <button type="button" class="preset-btn" data-minutes="6000">100h</button>
+            <button type="button" class="preset-btn" data-minutes="9000">150h</button>
+          </div>
+          <span class="limit-preview" id="global-monthly-limit-minutes-preview"></span>
+        </div>
+        <p class="field-error" id="global-limit-error"></p>
+      </section>
+      <section class="card">
+        <h2>Grace period</h2>
+        <div class="ignore-input">
+          <p>Extra time allowed after a limit is reached, before the site actually blocks.</p>
+          <div class="limit-row">
+            <input type="number" name="grace-minutes" id="grace-minutes" placeholder="Minutes" min="0" max="120" />
+          </div>
+          <p class="field-error" id="grace-error"></p>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Scheduled access</h2>
+        <div class="ignore">
+          <div class="ignore-input">
+            <p>Only allow a site between two times each day</p>
+            <div class="limit-row">
+              <input type="text" name="schedule-url" id="schedule-url" placeholder="example.com" list="known-hosts" />
+              <input type="time" name="schedule-start" id="schedule-start" value="09:00" />
+              <span class="schedule-to">to</span>
+              <input type="time" name="schedule-end" id="schedule-end" value="17:00" />
+              <button type="button" id="add-schedule">Add</button>
+            </div>
+            <p class="field-error" id="schedule-error"></p>
+          </div>
+          <div class="ignore-list">
+            <ul id="schedules-list"></ul>
+          </div>
         </div>
       </section>
       <!-- Language selection is deferred: chrome.i18n follows the browser's UI

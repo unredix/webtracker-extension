@@ -33,6 +33,11 @@ body {
   color: rgb(224, 160, 48);
 }
 
+#status.status-grace {
+  border-color: rgb(236, 131, 90);
+  color: rgb(236, 131, 90);
+}
+
 .currentTime {
   color: white;
   text-align: center;

@@ -2,12 +2,18 @@ import {
   getSettings,
   getDayState,
   saveDayState,
+  getRecentDayStates,
   todayKey,
   pruneOldDayKeys,
   getActiveSession,
   saveActiveSession,
 } from "./lib/storage.js";
-import { isBlocked, evaluateLimits, evaluateWarnings } from "./lib/limits.js";
+import { isBlocked, evaluateLimits, evaluateWarnings, evaluateGraceStarted, exceedsRollingLimit } from "./lib/limits.js";
+
+const ROLLING_PERIODS = [
+  { key: "week", days: 7, siteSetting: "siteWeeklyLimits", globalSetting: "globalWeeklyLimitMinutes" },
+  { key: "month", days: 30, siteSetting: "siteMonthlyLimits", globalSetting: "globalMonthlyLimitMinutes" },
+];
 
 const IDLE_DETECTION_SECONDS = 15;
 const MAX_FLUSH_SECONDS = 600; // cap a single flush (e.g. after OS sleep) so a long gap can't over-attribute time
@@ -126,6 +132,13 @@ async function flush(now = Date.now()) {
       siteJustWarned.forEach((h) => (day.warned.sites[h] = true));
       if (globalJustWarned) day.warned.global = true;
 
+      // Also checked after the block mutations: once a grace period's window has
+      // fully elapsed the scope is already blocked above, so there's nothing left
+      // to "start" grace on.
+      const { siteJustGraced, globalJustGraced } = evaluateGraceStarted(day, settings);
+      siteJustGraced.forEach((h) => (day.grace.sites[h] = true));
+      if (globalJustGraced) day.grace.global = true;
+
       await saveDayState(dateKey, day);
 
       if (siteJustExceeded.length || globalJustExceeded) {
@@ -134,6 +147,9 @@ async function flush(now = Date.now()) {
       }
       if (siteJustWarned.length || globalJustWarned) {
         notifyApproachingLimit(siteJustWarned, globalJustWarned, settings);
+      }
+      if (siteJustGraced.length || globalJustGraced) {
+        notifyGraceStarted(siteJustGraced, globalJustGraced, settings);
       }
     }
   }
@@ -153,6 +169,7 @@ async function maybeKickActiveTab(day, settings) {
       chrome.runtime.getURL("blocked/blocked.html") +
       `?site=${encodeURIComponent(activeSession.hostname)}` +
       `&reason=${encodeURIComponent(result.reason)}` +
+      `&period=${encodeURIComponent(result.period || "day")}` +
       `&from=${encodeURIComponent(tab.url)}`;
     await chrome.tabs.update(activeSession.tabId, { url: blockedUrl });
   } catch {
@@ -199,6 +216,102 @@ function notifyApproachingLimit(siteJustWarned, globalJustWarned, settings) {
       message: `You're close to your ${settings.globalDailyLimitMinutes}-minute overall daily browsing limit.`,
     });
   }
+}
+
+function notifyGraceStarted(siteJustGraced, globalJustGraced, settings) {
+  for (const hostname of siteJustGraced) {
+    chrome.notifications.create(`grace-site-${hostname}-${Date.now()}`, {
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icon.png"),
+      title: "Daily limit reached",
+      message: `${hostname} will block in ${settings.graceMinutes} more minute${settings.graceMinutes === 1 ? "" : "s"}.`,
+    });
+  }
+  if (globalJustGraced) {
+    chrome.notifications.create(`grace-global-${Date.now()}`, {
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icon.png"),
+      title: "Daily limit reached",
+      message: `Browsing will block in ${settings.graceMinutes} more minute${settings.graceMinutes === 1 ? "" : "s"}.`,
+    });
+  }
+}
+
+function notifyRollingBlocks(newlyBlocked) {
+  for (const item of newlyBlocked) {
+    const periodLabel = item.period === "week" ? "weekly" : "monthly";
+    if (item.scope === "site") {
+      chrome.notifications.create(`limit-${item.period}-${item.hostname}-${Date.now()}`, {
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("icon.png"),
+        title: "Limit reached",
+        message: `You've reached your ${periodLabel} time limit for ${item.hostname}.`,
+      });
+    } else {
+      chrome.notifications.create(`limit-${item.period}-global-${Date.now()}`, {
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("icon.png"),
+        title: "Limit reached",
+        message: `You've reached your overall ${periodLabel} browsing time limit.`,
+      });
+    }
+  }
+}
+
+// Weekly/monthly caps need several days of storage summed together, so unlike
+// the daily checks in flush() this only runs once a minute from the heartbeat
+// alarm rather than on every tab/focus/idle event - plenty tight for a cap
+// measured in hours, and far cheaper than re-summing a 30-day window on every
+// tab switch.
+async function evaluateRollingCaps(settings) {
+  const hasAnyRollingLimit = ROLLING_PERIODS.some(
+    (period) => Object.keys(settings[period.siteSetting]).length > 0 || settings[period.globalSetting]
+  );
+  if (!hasAnyRollingLimit) return;
+
+  const dateKey = todayKey();
+  const day = await getDayState(dateKey);
+  const newlyBlocked = [];
+  let changed = false;
+
+  for (const period of ROLLING_PERIODS) {
+    changed = (await applyRollingPeriod(period, settings, day, newlyBlocked)) || changed;
+  }
+
+  if (changed) {
+    await saveDayState(dateKey, day);
+    notifyRollingBlocks(newlyBlocked);
+  }
+}
+
+async function applyRollingPeriod(period, settings, day, newlyBlocked) {
+  const siteLimitsForPeriod = settings[period.siteSetting];
+  const globalLimitForPeriod = settings[period.globalSetting];
+  if (!Object.keys(siteLimitsForPeriod).length && !globalLimitForPeriod) return false;
+
+  const recent = await getRecentDayStates(period.days);
+  let changed = false;
+
+  for (const [hostname, minutes] of Object.entries(siteLimitsForPeriod)) {
+    if (day.blocked.sites[hostname]) continue; // already blocked for some reason today
+    const totalSeconds = recent.reduce((sum, { state }) => sum + (state.tracking.sites[hostname] || 0), 0);
+    if (exceedsRollingLimit(totalSeconds, minutes)) {
+      day.blocked.sites[hostname] = period.key;
+      newlyBlocked.push({ scope: "site", hostname, period: period.key });
+      changed = true;
+    }
+  }
+
+  if (globalLimitForPeriod && !day.blocked.global) {
+    const totalSeconds = recent.reduce((sum, { state }) => sum + state.tracking.total, 0);
+    if (exceedsRollingLimit(totalSeconds, globalLimitForPeriod)) {
+      day.blocked.global = period.key;
+      newlyBlocked.push({ scope: "global", period: period.key });
+      changed = true;
+    }
+  }
+
+  return changed;
 }
 
 async function handleTabActivated({ tabId, windowId }) {
@@ -280,6 +393,15 @@ async function handleAlarm(alarm) {
   if (alarm.name !== "heartbeat") return;
   await flush();
   await pruneOldDayKeys();
+
+  const settings = await getSettings();
+  await evaluateRollingCaps(settings);
+
+  // Catch-all: covers cases flush()'s immediate check doesn't, like a
+  // schedule window ending or a rolling cap just evaluated above, for
+  // whatever tab happens to be open right now.
+  const day = await getDayState();
+  await maybeKickActiveTab(day, settings);
 }
 
 function handleMessage(message, sender, sendResponse) {

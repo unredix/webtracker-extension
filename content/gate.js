@@ -14,6 +14,7 @@
         chrome.runtime.getURL("blocked/blocked.html") +
         `?site=${encodeURIComponent(hostname)}` +
         `&reason=${encodeURIComponent(response.reason)}` +
+        `&period=${encodeURIComponent(response.period || "day")}` +
         `&from=${encodeURIComponent(location.href)}`;
       location.replace(url);
       return;

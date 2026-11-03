@@ -191,14 +191,16 @@ footer button:hover {
 }
 
 #ignored-sites-list,
-#site-limits-list {
+#site-limits-list,
+#schedules-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
 #ignored-sites-list li,
-#site-limits-list li {
+#site-limits-list li,
+#schedules-list li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -208,7 +210,8 @@ footer button:hover {
 }
 
 #ignored-sites-list li:last-child,
-#site-limits-list li:last-child {
+#site-limits-list li:last-child,
+#schedules-list li:last-child {
   border-bottom: none;
 }
 
@@ -219,21 +222,57 @@ footer button:hover {
   margin: 8px 0 0;
 }
 
-#limit-url {
+#limit-url,
+#schedule-url {
   flex: 1;
   min-width: 0;
 }
 
 #limit-minutes,
-#global-limit-minutes {
+#global-limit-minutes,
+#global-weekly-limit-minutes,
+#global-monthly-limit-minutes {
   width: 90px;
 }
 
-#global-limit-minutes {
-  margin-top: 12px;
+.global-limit-row {
+  padding: 10px 0;
+  border-bottom: 1px solid rgb(50, 50, 50);
 }
 
-#add-limit {
+.global-limit-row:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.global-limit-row .limit-row {
+  margin-top: 10px;
+}
+
+#limit-period,
+input[type="time"] {
+  background-color: rgb(32, 32, 32);
+  border: 1px solid rgb(70, 70, 70);
+  color: white;
+  padding: 7px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+#limit-period:focus,
+input[type="time"]:focus {
+  outline: none;
+  border-color: rgb(133, 133, 255);
+}
+
+.schedule-to {
+  color: rgb(190, 190, 190);
+  font-size: 13px;
+}
+
+#add-limit,
+#add-schedule {
   background-color: rgb(32, 32, 32);
   color: rgb(133, 133, 255);
   border: 1px solid rgb(133, 133, 255);
@@ -244,7 +283,8 @@ footer button:hover {
   white-space: nowrap;
 }
 
-#add-limit:hover {
+#add-limit:hover,
+#add-schedule:hover {
   background-color: rgb(40, 40, 50);
 }
 
