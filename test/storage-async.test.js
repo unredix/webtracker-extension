@@ -62,6 +62,8 @@ test("getSettings: returns documented defaults when nothing is stored", async ()
   assert.deepEqual(settings.siteSchedules, {});
   assert.deepEqual(settings.siteCategories, {});
   assert.equal(settings.graceMinutes, 0);
+  assert.equal(settings.challengeDifficulty, "medium");
+  assert.deepEqual(settings.customPassages, []);
 });
 
 test("setSettings + getSettings: round-trips every field", async () => {
@@ -69,11 +71,21 @@ test("setSettings + getSettings: round-trips every field", async () => {
     siteLimits: { "example.com": 30 },
     graceMinutes: 5,
     siteCategories: { "example.com": "Work" },
+    challengeDifficulty: "hard",
+    customPassages: [{ id: "1", title: "Custom", text: "Some text.", question: { prompt: "?", choices: ["a", "b"], correctIndex: 0 } }],
   });
   const settings = await getSettings();
   assert.deepEqual(settings.siteLimits, { "example.com": 30 });
   assert.equal(settings.graceMinutes, 5);
   assert.deepEqual(settings.siteCategories, { "example.com": "Work" });
+  assert.equal(settings.challengeDifficulty, "hard");
+  assert.equal(settings.customPassages.length, 1);
+});
+
+test("getSettings: rejects an invalid challengeDifficulty and falls back to medium", async () => {
+  await setSettings({ challengeDifficulty: "impossible" });
+  const settings = await getSettings();
+  assert.equal(settings.challengeDifficulty, "medium");
 });
 
 test("getRecentDayStates: oldest first, ending today with no offset", async () => {

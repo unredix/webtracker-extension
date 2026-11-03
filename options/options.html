@@ -158,6 +158,47 @@
           </div>
         </div>
       </section>
+      <section class="card">
+        <h2>Challenge difficulty</h2>
+        <div class="ignore-input">
+          <p>How hard the math/reading challenge is when a limit is reached</p>
+          <div class="difficulty-row" id="difficulty-row">
+            <label><input type="radio" name="challenge-difficulty" value="easy" /> Easy</label>
+            <label><input type="radio" name="challenge-difficulty" value="medium" /> Medium</label>
+            <label><input type="radio" name="challenge-difficulty" value="hard" /> Hard</label>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Custom reading passages</h2>
+        <div class="ignore-input">
+          <p>Add your own short passage and a comprehension question</p>
+          <input type="text" id="custom-title" placeholder="Title" />
+          <textarea id="custom-text" placeholder="Passage text" rows="4"></textarea>
+          <input type="text" id="custom-question" placeholder="Question" />
+          <div class="custom-choices" id="custom-choices">
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="0" checked />
+              <input type="text" class="custom-choice-input" placeholder="Choice 1 (correct)" />
+            </div>
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="1" />
+              <input type="text" class="custom-choice-input" placeholder="Choice 2" />
+            </div>
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="2" />
+              <input type="text" class="custom-choice-input" placeholder="Choice 3" />
+            </div>
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="3" />
+              <input type="text" class="custom-choice-input" placeholder="Choice 4" />
+            </div>
+          </div>
+          <button type="button" id="add-custom-passage">Add passage</button>
+          <p class="field-error" id="custom-passage-error"></p>
+          <ul id="custom-passages-list"></ul>
+        </div>
+      </section>
       <!-- Language selection is deferred: chrome.i18n follows the browser's UI
            locale, not a user-chosen value, so a manual picker would need a
            custom message-loading layer plus translated challenge content.

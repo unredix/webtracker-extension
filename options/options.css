@@ -298,6 +298,92 @@ input[type="time"]:focus {
   background-color: rgb(40, 40, 50);
 }
 
+.difficulty-row {
+  display: flex;
+  gap: 20px;
+  margin-top: 4px;
+}
+
+.difficulty-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+#custom-title,
+#custom-text,
+#custom-question {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+#custom-text {
+  background-color: rgb(32, 32, 32);
+  border: 1px solid rgb(70, 70, 70);
+  color: white;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+}
+
+#custom-text:focus {
+  outline: none;
+  border-color: rgb(133, 133, 255);
+}
+
+.custom-choices {
+  margin-bottom: 10px;
+}
+
+.custom-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.custom-choice-input {
+  flex: 1;
+  min-width: 0;
+}
+
+#add-custom-passage {
+  background-color: rgb(32, 32, 32);
+  color: rgb(133, 133, 255);
+  border: 1px solid rgb(133, 133, 255);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#add-custom-passage:hover {
+  background-color: rgb(40, 40, 50);
+}
+
+#custom-passages-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+
+#custom-passages-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgb(50, 50, 50);
+  font-size: 14px;
+}
+
+#custom-passages-list li:last-child {
+  border-bottom: none;
+}
+
 .limit-presets {
   display: flex;
   align-items: center;

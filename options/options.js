@@ -52,6 +52,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   const categoryError = document.getElementById("category-error");
   const categoriesList = document.getElementById("categories-list");
 
+  const difficultyRow = document.getElementById("difficulty-row");
+
+  const customTitleInput = document.getElementById("custom-title");
+  const customTextInput = document.getElementById("custom-text");
+  const customQuestionInput = document.getElementById("custom-question");
+  const customChoiceInputs = Array.from(document.querySelectorAll(".custom-choice-input"));
+  const addCustomPassageButton = document.getElementById("add-custom-passage");
+  const customPassageError = document.getElementById("custom-passage-error");
+  const customPassagesList = document.getElementById("custom-passages-list");
+
   const knownHostsList = document.getElementById("known-hosts");
   const knownCategoriesList = document.getElementById("known-categories");
 
@@ -120,6 +130,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     categoriesList.appendChild(listItem);
   }
 
+  function addCustomPassageItem(passage) {
+    const listItem = makeListItem(passage.title);
+    listItem.dataset.passage = JSON.stringify(passage);
+    customPassagesList.appendChild(listItem);
+  }
+
   function setGlobalRow(enabledEl, minutesEl, value) {
     if (value) {
       enabledEl.checked = true;
@@ -151,6 +167,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     categoriesList.innerHTML = "";
     Object.entries(settings.siteCategories).forEach(([hostname, category]) => addCategoryItem(hostname, category));
     populateKnownCategories(settings);
+
+    customPassagesList.innerHTML = "";
+    settings.customPassages.forEach(addCustomPassageItem);
+
+    const difficultyInput = difficultyRow.querySelector(`input[value="${settings.challengeDifficulty}"]`);
+    if (difficultyInput) difficultyInput.checked = true;
 
     ignoreIncognitoCheckbox.checked = settings.ignoreInIncognito;
 
@@ -302,6 +324,39 @@ document.addEventListener("DOMContentLoaded", async function () {
     showButtons();
   }
 
+  function addCustomPassageFromInputs() {
+    customPassageError.textContent = "";
+
+    const title = customTitleInput.value.trim();
+    const text = customTextInput.value.trim();
+    const prompt = customQuestionInput.value.trim();
+    const choices = customChoiceInputs.map((input) => input.value.trim());
+    const correctIndex = Number(document.querySelector('input[name="custom-correct"]:checked').value);
+
+    if (!title || !text || !prompt) {
+      customPassageError.textContent = "Fill in a title, passage text, and question.";
+      return;
+    }
+    if (choices.some((choice) => !choice)) {
+      customPassageError.textContent = "Fill in all four choices.";
+      return;
+    }
+
+    addCustomPassageItem({
+      id: crypto.randomUUID(),
+      title,
+      text,
+      question: { prompt, choices, correctIndex },
+    });
+
+    customTitleInput.value = "";
+    customTextInput.value = "";
+    customQuestionInput.value = "";
+    customChoiceInputs.forEach((input) => (input.value = ""));
+    document.querySelector('input[name="custom-correct"][value="0"]').checked = true;
+    showButtons();
+  }
+
   ignoreListInput.addEventListener("keydown", function (event) {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -350,6 +405,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   });
 
+  addCustomPassageButton.addEventListener("click", addCustomPassageFromInputs);
+
+  difficultyRow.querySelectorAll('input[name="challenge-difficulty"]').forEach((input) => {
+    input.addEventListener("change", showButtons);
+  });
+
   ignoreIncognitoCheckbox.addEventListener("change", showButtons);
   graceMinutesInput.addEventListener("change", showButtons);
 
@@ -360,6 +421,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     graceError.textContent = "";
     scheduleError.textContent = "";
     categoryError.textContent = "";
+    customPassageError.textContent = "";
     await loadOptions();
     refreshAllPreviews();
     hideButtons();
@@ -399,6 +461,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       siteCategories[li.dataset.site] = li.dataset.category;
     });
 
+    const customPassages = Array.from(customPassagesList.children).map((li) => JSON.parse(li.dataset.passage));
+
+    const difficultyChecked = difficultyRow.querySelector('input[name="challenge-difficulty"]:checked');
+    const challengeDifficulty = difficultyChecked ? difficultyChecked.value : "medium";
+
     const daily = readGlobalRow(globalLimitEnabled, globalLimitMinutes, PERIOD_MAX_MINUTES.day);
     const weekly = readGlobalRow(globalWeeklyLimitEnabled, globalWeeklyLimitMinutes, PERIOD_MAX_MINUTES.week);
     const monthly = readGlobalRow(globalMonthlyLimitEnabled, globalMonthlyLimitMinutes, PERIOD_MAX_MINUTES.month);
@@ -425,6 +492,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       graceMinutes,
       siteSchedules,
       siteCategories,
+      customPassages,
+      challengeDifficulty,
     });
 
     await loadOptions();
