@@ -192,7 +192,8 @@ footer button:hover {
 
 #ignored-sites-list,
 #site-limits-list,
-#schedules-list {
+#schedules-list,
+#categories-list {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -200,7 +201,8 @@ footer button:hover {
 
 #ignored-sites-list li,
 #site-limits-list li,
-#schedules-list li {
+#schedules-list li,
+#categories-list li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -211,7 +213,8 @@ footer button:hover {
 
 #ignored-sites-list li:last-child,
 #site-limits-list li:last-child,
-#schedules-list li:last-child {
+#schedules-list li:last-child,
+#categories-list li:last-child {
   border-bottom: none;
 }
 
@@ -223,9 +226,14 @@ footer button:hover {
 }
 
 #limit-url,
-#schedule-url {
+#schedule-url,
+#category-url {
   flex: 1;
   min-width: 0;
+}
+
+#category-name {
+  width: 140px;
 }
 
 #limit-minutes,
@@ -272,7 +280,8 @@ input[type="time"]:focus {
 }
 
 #add-limit,
-#add-schedule {
+#add-schedule,
+#add-category {
   background-color: rgb(32, 32, 32);
   color: rgb(133, 133, 255);
   border: 1px solid rgb(133, 133, 255);
@@ -284,7 +293,8 @@ input[type="time"]:focus {
 }
 
 #add-limit:hover,
-#add-schedule:hover {
+#add-schedule:hover,
+#add-category:hover {
   background-color: rgb(40, 40, 50);
 }
 

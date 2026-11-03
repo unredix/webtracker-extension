@@ -1,4 +1,4 @@
-import { getSettings, setSettings, normalizeHostname, getKnownHostnames } from "../lib/storage.js";
+import { getSettings, setSettings, normalizeHostname, getKnownHostnames, getKnownCategories } from "../lib/storage.js";
 import { formatMinutes } from "../lib/time.js";
 import { parseTimeToHours, formatHoursToTime } from "../lib/limits.js";
 
@@ -46,7 +46,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   const scheduleError = document.getElementById("schedule-error");
   const schedulesList = document.getElementById("schedules-list");
 
+  const categoryUrlInput = document.getElementById("category-url");
+  const categoryNameInput = document.getElementById("category-name");
+  const addCategoryButton = document.getElementById("add-category");
+  const categoryError = document.getElementById("category-error");
+  const categoriesList = document.getElementById("categories-list");
+
   const knownHostsList = document.getElementById("known-hosts");
+  const knownCategoriesList = document.getElementById("known-categories");
 
   const saveButton = document.getElementById("save-changes");
   const cancelButton = document.getElementById("cancel-changes");
@@ -106,6 +113,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     schedulesList.appendChild(listItem);
   }
 
+  function addCategoryItem(hostname, category) {
+    const listItem = makeListItem(`${hostname} — ${category}`);
+    listItem.dataset.site = hostname;
+    listItem.dataset.category = category;
+    categoriesList.appendChild(listItem);
+  }
+
   function setGlobalRow(enabledEl, minutesEl, value) {
     if (value) {
       enabledEl.checked = true;
@@ -134,6 +148,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       addScheduleItem(hostname, schedule.startHour, schedule.endHour)
     );
 
+    categoriesList.innerHTML = "";
+    Object.entries(settings.siteCategories).forEach(([hostname, category]) => addCategoryItem(hostname, category));
+    populateKnownCategories(settings);
+
     ignoreIncognitoCheckbox.checked = settings.ignoreInIncognito;
 
     setGlobalRow(globalLimitEnabled, globalLimitMinutes, settings.globalDailyLimitMinutes);
@@ -150,6 +168,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       const option = document.createElement("option");
       option.value = hostname;
       knownHostsList.appendChild(option);
+    });
+  }
+
+  function populateKnownCategories(settings) {
+    knownCategoriesList.innerHTML = "";
+    getKnownCategories(settings).forEach((category) => {
+      const option = document.createElement("option");
+      option.value = category;
+      knownCategoriesList.appendChild(option);
     });
   }
 
@@ -250,6 +277,31 @@ document.addEventListener("DOMContentLoaded", async function () {
     showButtons();
   }
 
+  function addCategoryFromInputs() {
+    categoryError.textContent = "";
+
+    const hostname = normalizeHostname(categoryUrlInput.value);
+    if (!hostname) {
+      categoryError.textContent = "Enter a valid site (e.g. example.com).";
+      return;
+    }
+
+    const category = categoryNameInput.value.trim();
+    if (!category) {
+      categoryError.textContent = "Enter a category name.";
+      return;
+    }
+
+    const existing = Array.from(categoriesList.children);
+    const duplicate = existing.find((li) => li.dataset.site === hostname);
+    if (duplicate) duplicate.remove();
+
+    addCategoryItem(hostname, category);
+    categoryUrlInput.value = "";
+    categoryNameInput.value = "";
+    showButtons();
+  }
+
   ignoreListInput.addEventListener("keydown", function (event) {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -289,6 +341,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     addScheduleFromInputs();
   });
 
+  addCategoryButton.addEventListener("click", addCategoryFromInputs);
+  [categoryUrlInput, categoryNameInput].forEach((input) => {
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      addCategoryFromInputs();
+    });
+  });
+
   ignoreIncognitoCheckbox.addEventListener("change", showButtons);
   graceMinutesInput.addEventListener("change", showButtons);
 
@@ -298,6 +359,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     globalLimitError.textContent = "";
     graceError.textContent = "";
     scheduleError.textContent = "";
+    categoryError.textContent = "";
     await loadOptions();
     refreshAllPreviews();
     hideButtons();
@@ -332,6 +394,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       };
     });
 
+    const siteCategories = {};
+    Array.from(categoriesList.children).forEach((li) => {
+      siteCategories[li.dataset.site] = li.dataset.category;
+    });
+
     const daily = readGlobalRow(globalLimitEnabled, globalLimitMinutes, PERIOD_MAX_MINUTES.day);
     const weekly = readGlobalRow(globalWeeklyLimitEnabled, globalWeeklyLimitMinutes, PERIOD_MAX_MINUTES.week);
     const monthly = readGlobalRow(globalMonthlyLimitEnabled, globalMonthlyLimitMinutes, PERIOD_MAX_MINUTES.month);
@@ -357,6 +424,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       globalMonthlyLimitMinutes: monthly.value,
       graceMinutes,
       siteSchedules,
+      siteCategories,
     });
 
     await loadOptions();

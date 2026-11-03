@@ -1,0 +1,101 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+function makeArea() {
+  const map = new Map();
+  return {
+    async get(keys) {
+      if (keys == null) return Object.fromEntries(map);
+      const keyList = typeof keys === "string" ? [keys] : keys;
+      const result = {};
+      for (const key of keyList) if (map.has(key)) result[key] = map.get(key);
+      return result;
+    },
+    async set(obj) {
+      for (const [key, value] of Object.entries(obj)) map.set(key, value);
+    },
+    async remove(keys) {
+      const keyList = typeof keys === "string" ? [keys] : keys;
+      for (const key of keyList) map.delete(key);
+    },
+  };
+}
+
+globalThis.chrome = {
+  storage: { local: makeArea(), sync: makeArea(), session: makeArea() },
+};
+
+const { getDayState, saveDayState, getSettings, setSettings, getRecentDayStates, getKnownCategories, todayKey } =
+  await import("../lib/storage.js");
+
+test("getDayState: a never-saved day returns the full empty shape", async () => {
+  const day = await getDayState("2026-01-01");
+  assert.deepEqual(day, {
+    tracking: { total: 0, sites: {} },
+    blocked: { sites: {}, global: false },
+    unlocked: { sites: {}, global: false },
+    warned: { sites: {}, global: false },
+    grace: { sites: {}, global: false },
+  });
+});
+
+test("getDayState: merging a saved day still returns every top-level key (regression: grace was dropped)", async () => {
+  const dateKey = "2026-02-02";
+  const day = await getDayState(dateKey);
+  day.blocked.sites["example.com"] = true;
+  await saveDayState(dateKey, day);
+
+  const reloaded = await getDayState(dateKey);
+  assert.deepEqual(reloaded.blocked, { sites: { "example.com": true }, global: false });
+  // Every field getDayState can return must survive a round trip through
+  // storage, not just the one that was actually mutated before saving.
+  assert.deepEqual(reloaded.grace, { sites: {}, global: false });
+  assert.deepEqual(reloaded.warned, { sites: {}, global: false });
+  assert.deepEqual(reloaded.unlocked, { sites: {}, global: false });
+  assert.deepEqual(reloaded.tracking, { total: 0, sites: {} });
+});
+
+test("getSettings: returns documented defaults when nothing is stored", async () => {
+  const settings = await getSettings();
+  assert.equal(settings.globalDailyLimitMinutes, null);
+  assert.deepEqual(settings.siteLimits, {});
+  assert.deepEqual(settings.siteSchedules, {});
+  assert.deepEqual(settings.siteCategories, {});
+  assert.equal(settings.graceMinutes, 0);
+});
+
+test("setSettings + getSettings: round-trips every field", async () => {
+  await setSettings({
+    siteLimits: { "example.com": 30 },
+    graceMinutes: 5,
+    siteCategories: { "example.com": "Work" },
+  });
+  const settings = await getSettings();
+  assert.deepEqual(settings.siteLimits, { "example.com": 30 });
+  assert.equal(settings.graceMinutes, 5);
+  assert.deepEqual(settings.siteCategories, { "example.com": "Work" });
+});
+
+test("getRecentDayStates: oldest first, ending today with no offset", async () => {
+  const days = await getRecentDayStates(3);
+  assert.equal(days.length, 3);
+  assert.equal(days[2].dateKey, todayKey());
+});
+
+test("getRecentDayStates: offsetDays shifts the whole window into the past", async () => {
+  const thisWeek = await getRecentDayStates(7, 0);
+  const lastWeek = await getRecentDayStates(7, 7);
+  for (let i = 0; i < 7; i++) {
+    const diffDays = Math.round((new Date(thisWeek[i].dateKey) - new Date(lastWeek[i].dateKey)) / 86400000);
+    assert.equal(diffDays, 7, `day ${i} of this week should be exactly 7 days after the same index last week`);
+  }
+});
+
+test("getKnownCategories: distinct, sorted category names from settings", () => {
+  const settings = { siteCategories: { a: "Work", b: "Social", c: "Work" } };
+  assert.deepEqual(getKnownCategories(settings), ["Social", "Work"]);
+});
+
+test("getKnownCategories: empty when no categories are assigned", () => {
+  assert.deepEqual(getKnownCategories({ siteCategories: {} }), []);
+});

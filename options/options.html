@@ -141,6 +141,23 @@
           </div>
         </div>
       </section>
+      <section class="card">
+        <h2>Site categories</h2>
+        <div class="ignore">
+          <div class="ignore-input">
+            <p>Group sites for the Weekly Overview's category breakdown</p>
+            <div class="limit-row">
+              <input type="text" name="category-url" id="category-url" placeholder="example.com" list="known-hosts" />
+              <input type="text" name="category-name" id="category-name" placeholder="Category" list="known-categories" />
+              <button type="button" id="add-category">Add</button>
+            </div>
+            <p class="field-error" id="category-error"></p>
+          </div>
+          <div class="ignore-list">
+            <ul id="categories-list"></ul>
+          </div>
+        </div>
+      </section>
       <!-- Language selection is deferred: chrome.i18n follows the browser's UI
            locale, not a user-chosen value, so a manual picker would need a
            custom message-loading layer plus translated challenge content.
@@ -151,6 +168,7 @@
       </footer>
     </div>
     <datalist id="known-hosts"></datalist>
+    <datalist id="known-categories"></datalist>
     <script src="options.js" type="module"></script>
   </body>
 </html>
