@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     cancelButton.style.display = "none";
   }
 
-  function makeListItem(labelText, onDelete) {
+  function makeListItem(labelText) {
     const listItem = document.createElement("li");
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "✖";
@@ -48,7 +48,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     deleteButton.style.marginRight = "10px";
     deleteButton.addEventListener("click", function () {
       listItem.remove();
-      onDelete();
       showButtons();
     });
 
@@ -61,13 +60,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function addIgnoredSiteItem(hostname) {
-    const listItem = makeListItem(hostname, function () {});
+    const listItem = makeListItem(hostname);
     listItem.dataset.site = hostname;
     ignoreList.appendChild(listItem);
   }
 
   function addSiteLimitItem(hostname, minutes) {
-    const listItem = makeListItem(`${hostname} — ${minutes} min`, function () {});
+    const listItem = makeListItem(`${hostname} — ${minutes} min`);
     listItem.dataset.site = hostname;
     listItem.dataset.minutes = String(minutes);
     siteLimitsList.appendChild(listItem);
