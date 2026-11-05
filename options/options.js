@@ -107,6 +107,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     ignoreList.appendChild(listItem);
   }
 
+  function currentIgnoredHostnames() {
+    return Array.from(ignoreList.children).map((li) => li.dataset.site);
+  }
+
+  function currentConfiguredHostnames() {
+    const lists = [siteLimitsList, schedulesList, categoriesList];
+    return new Set(lists.flatMap((list) => Array.from(list.children).map((li) => li.dataset.site)));
+  }
+
   function addSiteLimitItem(hostname, minutes, period) {
     const listItem = makeListItem(`${hostname} — ${formatMinutes(minutes)} / ${PERIOD_LABEL[period]}`);
     listItem.dataset.site = hostname;
@@ -226,6 +235,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     minutesEl.addEventListener("change", showButtons);
   }
 
+  function syncLimitMinutesMax() {
+    limitMinutesInput.max = String(PERIOD_MAX_MINUTES[limitPeriodSelect.value] || PERIOD_MAX_MINUTES.day);
+  }
+  limitPeriodSelect.addEventListener("change", syncLimitMinutesMax);
+  syncLimitMinutesMax();
+
   wirePresets(limitPresets, limitMinutesInput, limitMinutesPreview);
   wirePresets(globalLimitPresets, globalLimitMinutes, globalLimitMinutesPreview);
   wirePresets(globalWeeklyLimitPresets, globalWeeklyLimitMinutes, globalWeeklyLimitMinutesPreview);
@@ -272,6 +287,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     limitMinutesInput.value = "";
     limitMinutesPreview.textContent = "";
     showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      limitError.textContent = `Note: ${hostname} is on your ignore list, so this limit won't take effect until it's removed from Ignore.`;
+    }
   }
 
   function addScheduleFromInputs() {
@@ -297,6 +316,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     addScheduleItem(hostname, startHour, endHour);
     scheduleUrlInput.value = "";
     showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      scheduleError.textContent = `Note: ${hostname} is on your ignore list, so this schedule won't take effect until it's removed from Ignore.`;
+    }
   }
 
   function addCategoryFromInputs() {
@@ -322,6 +345,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     categoryUrlInput.value = "";
     categoryNameInput.value = "";
     showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      categoryError.textContent = `Note: ${hostname} is on your ignore list, so it's never tracked and won't appear in this category's breakdown.`;
+    }
   }
 
   function addCustomPassageFromInputs() {
@@ -339,6 +366,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (choices.some((choice) => !choice)) {
       customPassageError.textContent = "Fill in all four choices.";
+      return;
+    }
+    const distinctChoices = new Set(choices.map((choice) => choice.toLowerCase()));
+    if (distinctChoices.size < choices.length) {
+      customPassageError.textContent = "Choices must all be different.";
       return;
     }
 
@@ -377,6 +409,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     addIgnoredSiteItem(hostname);
     ignoreListInput.value = "";
     showButtons();
+
+    // Ignoring a site silently overrides any limit/schedule/category already
+    // configured for it (lib/limits.js's isBlocked exits immediately for an
+    // ignored hostname) - that configuration then never fires again, with
+    // nothing else telling the user why. Not a hard block, just a heads-up.
+    if (currentConfiguredHostnames().has(hostname)) {
+      ignoreListError.textContent = `Note: ${hostname} already has a limit, schedule, or category set - those won't take effect while it's ignored.`;
+    }
   });
 
   addLimitButton.addEventListener("click", addLimitFromInputs);
@@ -415,13 +455,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   graceMinutesInput.addEventListener("change", showButtons);
 
   cancelButton.addEventListener("click", async function () {
-    ignoreListError.textContent = "";
-    limitError.textContent = "";
-    globalLimitError.textContent = "";
-    graceError.textContent = "";
-    scheduleError.textContent = "";
-    categoryError.textContent = "";
-    customPassageError.textContent = "";
+    clearAllErrors();
     await loadOptions();
     refreshAllPreviews();
     hideButtons();
@@ -434,9 +468,23 @@ document.addEventListener("DOMContentLoaded", async function () {
     return { value: minutes, valid: true };
   }
 
-  saveButton.addEventListener("click", async function () {
+  function clearAllErrors() {
+    ignoreListError.textContent = "";
+    limitError.textContent = "";
     globalLimitError.textContent = "";
     graceError.textContent = "";
+    scheduleError.textContent = "";
+    categoryError.textContent = "";
+    customPassageError.textContent = "";
+  }
+
+  saveButton.addEventListener("click", async function () {
+    // Clear every section's error/note paragraph up front - previously only
+    // globalLimitError and graceError were cleared here, so a stale message
+    // from an earlier failed "add" in a different card (e.g. a typo'd
+    // hostname in Per-site limits) would survive an otherwise-successful
+    // save and keep implying something was still wrong.
+    clearAllErrors();
 
     const ignoredSites = Array.from(ignoreList.children).map((li) => li.dataset.site);
 

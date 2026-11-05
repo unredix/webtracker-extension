@@ -115,7 +115,11 @@
       <section class="card">
         <h2>Grace period</h2>
         <div class="ignore-input">
-          <p>Extra time allowed after a limit is reached, before the site actually blocks.</p>
+          <p>
+            Extra time allowed after a <strong>daily</strong> site or global limit is reached, before
+            it actually blocks. Doesn't apply to weekly/monthly limits or scheduled access - those
+            instead give one minute's warning before blocking.
+          </p>
           <div class="limit-row">
             <input type="number" name="grace-minutes" id="grace-minutes" placeholder="Minutes" min="0" max="120" />
           </div>

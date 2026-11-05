@@ -104,7 +104,23 @@ async function wakeAndReconcile() {
   }
 }
 
-async function flush(now = Date.now()) {
+// flush() is called from seven different event handlers with no natural
+// ordering between them (a fast tab-switch can land right on the once-a-
+// minute heartbeat). Without serialization, two overlapping calls would both
+// read the same stale activeSession.startedAt, double-count the same elapsed
+// interval, and race two saveDayState writes to the same key. Queue every
+// call behind a single promise chain so only one doFlush() body ever runs
+// at a time; a throwing call still lets the chain continue for the next one.
+let flushChain = Promise.resolve();
+
+function flush() {
+  const run = flushChain.then(() => doFlush());
+  flushChain = run.catch(() => {});
+  return run;
+}
+
+async function doFlush() {
+  const now = Date.now();
   await loadActiveSession();
   const settings = await getSettings();
   const wasCounting =
@@ -175,6 +191,72 @@ async function maybeKickActiveTab(day, settings) {
   } catch {
     // Tab may no longer exist; nothing to do.
   }
+}
+
+// Daily limits already get a configurable, accumulated-seconds grace window
+// before they block (see evaluateGraceStarted). A schedule window closing or
+// a rolling week/month cap tripping has no such window to extend - the
+// instant they're detected, they're already true - so without this, the
+// heartbeat's catch-all kick would cut an already-open tab with zero warning
+// (destroying in-progress typed input). This gives those two kinds of block
+// exactly one heartbeat tick (~1 minute) of warning first: the first tick a
+// scope is found blocked, it's only recorded as "about to block" and a
+// notification fires; only if it's *still* blocked on the next tick does the
+// tab actually get redirected. Returns true if `day.pendingKick` changed and
+// needs saving.
+async function maybeWarnOrKick(day, settings) {
+  if (!activeSession.hostname || activeSession.tabId == null) return false;
+  const result = isBlocked(activeSession.hostname, day, settings);
+
+  if (!result.blocked) {
+    if (day.pendingKick.sites[activeSession.hostname]) {
+      delete day.pendingKick.sites[activeSession.hostname];
+      return true;
+    }
+    if (day.pendingKick.global) {
+      day.pendingKick.global = null;
+      return true;
+    }
+    return false;
+  }
+
+  if (result.period === "day") {
+    await maybeKickActiveTab(day, settings);
+    return false;
+  }
+
+  const pendingTag = `${result.reason}:${result.period}`;
+  const alreadyWarned =
+    result.reason === "global"
+      ? day.pendingKick.global === pendingTag
+      : day.pendingKick.sites[activeSession.hostname] === pendingTag;
+
+  if (alreadyWarned) {
+    await maybeKickActiveTab(day, settings);
+    return false;
+  }
+
+  if (result.reason === "global") {
+    day.pendingKick.global = pendingTag;
+  } else {
+    day.pendingKick.sites[activeSession.hostname] = pendingTag;
+  }
+  notifyAboutToBlock(activeSession.hostname, result);
+  return true;
+}
+
+function notifyAboutToBlock(hostname, result) {
+  const periodLabel = { week: "weekly", month: "monthly", schedule: "scheduled-access" }[result.period] || result.period;
+  const message =
+    result.reason === "global"
+      ? `You're about to hit your ${periodLabel} browsing limit - this tab will block in about a minute.`
+      : `${hostname} is about to block (${periodLabel}) - this tab will redirect in about a minute.`;
+  chrome.notifications.create(`about-to-block-${result.reason}-${hostname || "global"}-${Date.now()}`, {
+    type: "basic",
+    iconUrl: chrome.runtime.getURL("icon.png"),
+    title: "About to block",
+    message,
+  });
 }
 
 function notifyLimitReached(siteJustExceeded, globalJustExceeded) {
@@ -263,25 +345,41 @@ function notifyRollingBlocks(newlyBlocked) {
 // alarm rather than on every tab/focus/idle event - plenty tight for a cap
 // measured in hours, and far cheaper than re-summing a 30-day window on every
 // tab switch.
+// Returns the day state the caller should use for any further checks this
+// tick (so it doesn't need its own extra getDayState() call), or null if
+// there was nothing configured to evaluate at all.
 async function evaluateRollingCaps(settings) {
   const hasAnyRollingLimit = ROLLING_PERIODS.some(
     (period) => Object.keys(settings[period.siteSetting]).length > 0 || settings[period.globalSetting]
   );
-  if (!hasAnyRollingLimit) return;
+  if (!hasAnyRollingLimit) return null;
 
   const dateKey = todayKey();
-  const day = await getDayState(dateKey);
+  const snapshot = await getDayState(dateKey);
   const newlyBlocked = [];
   let changed = false;
 
   for (const period of ROLLING_PERIODS) {
-    changed = (await applyRollingPeriod(period, settings, day, newlyBlocked)) || changed;
+    changed = (await applyRollingPeriod(period, settings, snapshot, newlyBlocked)) || changed;
   }
 
-  if (changed) {
-    await saveDayState(dateKey, day);
-    notifyRollingBlocks(newlyBlocked);
+  if (!changed) return snapshot;
+
+  // This scan can take ~2 batched storage reads worth of wall-clock time
+  // (one per rolling period) - long enough for a concurrent flush() to have
+  // written fresh tracking/warned/grace data in the meantime. Re-read right
+  // before saving and only layer this scan's *new* blocked flags on top of
+  // whatever's there now, rather than overwriting the whole day with the
+  // stale snapshot taken before the scan started.
+  const fresh = await getDayState(dateKey);
+  for (const [hostname, periodTag] of Object.entries(snapshot.blocked.sites)) {
+    if (!fresh.blocked.sites[hostname]) fresh.blocked.sites[hostname] = periodTag;
   }
+  if (snapshot.blocked.global && !fresh.blocked.global) fresh.blocked.global = snapshot.blocked.global;
+
+  await saveDayState(dateKey, fresh);
+  notifyRollingBlocks(newlyBlocked);
+  return fresh;
 }
 
 async function applyRollingPeriod(period, settings, day, newlyBlocked) {
@@ -395,13 +493,18 @@ async function handleAlarm(alarm) {
   await pruneOldDayKeys();
 
   const settings = await getSettings();
-  await evaluateRollingCaps(settings);
+  // evaluateRollingCaps already has to read the latest day state to decide
+  // whether anything newly tripped; reuse its result instead of fetching it
+  // a third time this tick (flush() and this are the other two reads).
+  const day = (await evaluateRollingCaps(settings)) || (await getDayState());
 
   // Catch-all: covers cases flush()'s immediate check doesn't, like a
   // schedule window ending or a rolling cap just evaluated above, for
-  // whatever tab happens to be open right now.
-  const day = await getDayState();
-  await maybeKickActiveTab(day, settings);
+  // whatever tab happens to be open right now. Daily blocks still kick
+  // immediately; schedule/rolling blocks get one tick of warning first (see
+  // maybeWarnOrKick).
+  const pendingKickChanged = await maybeWarnOrKick(day, settings);
+  if (pendingKickChanged) await saveDayState(todayKey(), day);
 }
 
 function handleMessage(message, sender, sendResponse) {
@@ -417,10 +520,12 @@ function handleMessage(message, sender, sendResponse) {
     if (message?.type === "completeChallenge") {
       const dateKey = todayKey();
       const day = await getDayState(dateKey);
+      const period = message.period || "day";
       if (message.reason === "global") {
-        day.unlocked.global = true;
+        day.unlocked.global = [...new Set([...(day.unlocked.global || []), period])];
       } else {
-        day.unlocked.sites[message.hostname] = true;
+        const existing = day.unlocked.sites[message.hostname] || [];
+        day.unlocked.sites[message.hostname] = [...new Set([...existing, period])];
       }
       await saveDayState(dateKey, day);
       sendResponse({ ok: true });

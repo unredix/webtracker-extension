@@ -274,6 +274,21 @@ cooldownContinue.addEventListener("click", () => {
 });
 
 async function completeChallenge() {
-  await chrome.runtime.sendMessage({ type: "completeChallenge", hostname: site, reason });
+  await chrome.runtime.sendMessage({ type: "completeChallenge", hostname: site, reason, period });
   location.replace(from);
 }
+
+// Each challenge's actual cost (streak length, pass ratio, wait time) used
+// to only be revealed after committing to it - all four choices looked
+// equally weighted even though they aren't. Fill in a short caption on each
+// button up front so the choice is informed before clicking in.
+async function populateChoiceCaptions() {
+  const { challengeDifficulty } = await ensureSettings();
+  const passRatio = READING_PASS_RATIO_BY_DIFFICULTY[challengeDifficulty] || READING_PASS_RATIO_BY_DIFFICULTY.medium;
+
+  document.getElementById("caption-math").textContent = `${getRequiredCorrect(challengeDifficulty)} in a row`;
+  document.getElementById("caption-reading").textContent = `~${Math.round(passRatio * 100)}% correct`;
+  document.getElementById("caption-typing").textContent = "exact match";
+  document.getElementById("caption-cooldown").textContent = `~${getCooldownSeconds(challengeDifficulty)}s wait`;
+}
+populateChoiceCaptions();

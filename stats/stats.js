@@ -4,13 +4,14 @@ import { computeUnderLimitStreak } from "../lib/limits.js";
 
 const BAR_RADIUS = 4;
 const MAX_BAR_THICKNESS = 24;
-const TOP_SITES_LIMIT = 8;
+const CHART_ROW_LIMIT = 8;
 const WEEKDAY_LABEL_MAX_DAYS = 10; // past this, weekday abbreviations repeat and get confusing
 
 const rangeRow = document.getElementById("range-row");
 const pageTitle = document.getElementById("page-title");
 const pageSubtitle = document.getElementById("page-subtitle");
 const statRow = document.getElementById("stat-row");
+const deltaLegendEl = document.getElementById("delta-legend");
 const dailyChartEl = document.getElementById("daily-chart");
 const sitesChartEl = document.getElementById("sites-chart");
 const categoriesChartEl = document.getElementById("categories-chart");
@@ -100,6 +101,7 @@ function renderStatTiles(days, previousDays, settings) {
   ];
 
   statRow.innerHTML = "";
+  deltaLegendEl.hidden = !tiles.some((tile) => tile.delta);
   for (const tile of tiles) {
     const tileEl = document.createElement("div");
     tileEl.className = "stat-tile";
@@ -366,7 +368,7 @@ function renderSitesChart(days) {
 
   const topSites = Object.entries(totals)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_SITES_LIMIT);
+    .slice(0, CHART_ROW_LIMIT);
 
   renderHorizontalBarChart(sitesChartEl, topSites, "Top sites", "No tracked activity yet in this period.");
 }
@@ -380,7 +382,9 @@ function renderCategoriesChart(days, settings) {
     }
   }
 
-  const categories = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const categories = Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, CHART_ROW_LIMIT);
 
   renderHorizontalBarChart(
     categoriesChartEl,

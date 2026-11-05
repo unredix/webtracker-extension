@@ -17,9 +17,10 @@ function emptyDay() {
   return {
     tracking: { total: 0, sites: {} },
     blocked: { sites: {}, global: false },
-    unlocked: { sites: {}, global: false },
+    unlocked: { sites: {}, global: [] },
     warned: { sites: {}, global: false },
     grace: { sites: {}, global: false },
+    pendingKick: { sites: {}, global: null },
   };
 }
 
@@ -58,11 +59,27 @@ test("isBlocked: a string block mark surfaces as the period", () => {
   assert.deepEqual(isBlocked("example.com", day, baseSettings()), { blocked: true, reason: "site", period: "week" });
 });
 
-test("isBlocked: unlocked site overrides blocked", () => {
+test("isBlocked: unlocking the same period that blocked a site clears it", () => {
+  const day = emptyDay();
+  day.blocked.sites["example.com"] = true; // legacy boolean mark == period "day"
+  day.unlocked.sites["example.com"] = ["day"];
+  assert.deepEqual(isBlocked("example.com", day, baseSettings()), { blocked: false, reason: null, period: null });
+});
+
+test("isBlocked: unlocking a DIFFERENT period does not clear this one (regression)", () => {
+  const day = emptyDay();
+  day.blocked.sites["example.com"] = "week";
+  day.unlocked.sites["example.com"] = ["day"]; // solved the daily-limit challenge, not the weekly one
+  assert.deepEqual(isBlocked("example.com", day, baseSettings()), { blocked: true, reason: "site", period: "week" });
+});
+
+test("isBlocked: a daily unlock must not also clear a schedule block on the same site (regression)", () => {
   const day = emptyDay();
   day.blocked.sites["example.com"] = true;
-  day.unlocked.sites["example.com"] = true;
-  assert.deepEqual(isBlocked("example.com", day, baseSettings()), { blocked: false, reason: null, period: null });
+  day.unlocked.sites["example.com"] = ["day"];
+  const settings = baseSettings({ siteSchedules: { "example.com": { startHour: 9, endHour: 17 } } });
+  const outside = new Date(2026, 0, 1, 20, 0);
+  assert.deepEqual(isBlocked("example.com", day, settings, outside), { blocked: true, reason: "site", period: "schedule" });
 });
 
 test("isBlocked: global block applies to any non-ignored site", () => {
@@ -92,9 +109,9 @@ test("isBlocked: inside the scheduled window is not blocked", () => {
   assert.deepEqual(isBlocked("example.com", day, settings, inside), { blocked: false, reason: null, period: null });
 });
 
-test("isBlocked: unlocking a scheduled site holds even outside its window", () => {
+test("isBlocked: unlocking the schedule period holds even outside its window", () => {
   const day = emptyDay();
-  day.unlocked.sites["example.com"] = true;
+  day.unlocked.sites["example.com"] = ["schedule"];
   const settings = baseSettings({ siteSchedules: { "example.com": { startHour: 9, endHour: 17 } } });
   const outside = new Date(2026, 0, 1, 20, 0);
   assert.deepEqual(isBlocked("example.com", day, settings, outside), { blocked: false, reason: null, period: null });
@@ -102,6 +119,27 @@ test("isBlocked: unlocking a scheduled site holds even outside its window", () =
 
 test("isOutsideSchedule: no schedule configured means never outside", () => {
   assert.equal(isOutsideSchedule("example.com", baseSettings()), false);
+});
+
+test("isOutsideSchedule: startHour === endHour reads as no restriction, not always-outside", () => {
+  const settings = baseSettings({ siteSchedules: { "example.com": { startHour: 9, endHour: 9 } } });
+  assert.equal(isOutsideSchedule("example.com", settings, new Date(2026, 0, 1, 3, 0)), false);
+});
+
+test("isOutsideSchedule: a reversed startHour > endHour reads as no restriction, not blocked 24/7", () => {
+  const settings = baseSettings({ siteSchedules: { "example.com": { startHour: 17, endHour: 9 } } });
+  for (const hour of [0, 6, 12, 18, 23]) {
+    assert.equal(
+      isOutsideSchedule("example.com", settings, new Date(2026, 0, 1, hour, 0)),
+      false,
+      `hour ${hour} should not be blocked by a reversed schedule`
+    );
+  }
+});
+
+test("isOutsideSchedule: non-numeric schedule fields read as no restriction", () => {
+  const settings = baseSettings({ siteSchedules: { "example.com": { startHour: "9", endHour: 17 } } });
+  assert.equal(isOutsideSchedule("example.com", settings, new Date(2026, 0, 1, 20, 0)), false);
 });
 
 test("parseTimeToHours: parses HH:MM into decimal hours", () => {

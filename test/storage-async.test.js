@@ -33,9 +33,10 @@ test("getDayState: a never-saved day returns the full empty shape", async () => 
   assert.deepEqual(day, {
     tracking: { total: 0, sites: {} },
     blocked: { sites: {}, global: false },
-    unlocked: { sites: {}, global: false },
+    unlocked: { sites: {}, global: [] },
     warned: { sites: {}, global: false },
     grace: { sites: {}, global: false },
+    pendingKick: { sites: {}, global: null },
   });
 });
 
@@ -51,8 +52,37 @@ test("getDayState: merging a saved day still returns every top-level key (regres
   // storage, not just the one that was actually mutated before saving.
   assert.deepEqual(reloaded.grace, { sites: {}, global: false });
   assert.deepEqual(reloaded.warned, { sites: {}, global: false });
-  assert.deepEqual(reloaded.unlocked, { sites: {}, global: false });
+  assert.deepEqual(reloaded.unlocked, { sites: {}, global: [] });
   assert.deepEqual(reloaded.tracking, { total: 0, sites: {} });
+  assert.deepEqual(reloaded.pendingKick, { sites: {}, global: null });
+});
+
+test("concurrent-write pattern: a late merge-before-save must not clobber tracking written mid-scan (regression)", async () => {
+  // Mirrors background.js's evaluateRollingCaps: take a snapshot, decide a
+  // block is needed, but don't save yet (standing in for the time a real
+  // multi-day rolling scan takes).
+  const dateKey = "2026-03-03";
+  const snapshot = await getDayState(dateKey);
+  snapshot.blocked.sites["example.com"] = "week";
+
+  // While that "scan" is in flight, a concurrent flush() writes fresh
+  // tracking data and saves it.
+  const concurrent = await getDayState(dateKey);
+  concurrent.tracking.sites["example.com"] = 999;
+  concurrent.tracking.total = 999;
+  await saveDayState(dateKey, concurrent);
+
+  // The scan finishes: re-read fresh and layer on only the new blocked flag,
+  // instead of saving the stale snapshot wholesale.
+  const fresh = await getDayState(dateKey);
+  for (const [hostname, periodTag] of Object.entries(snapshot.blocked.sites)) {
+    if (!fresh.blocked.sites[hostname]) fresh.blocked.sites[hostname] = periodTag;
+  }
+  await saveDayState(dateKey, fresh);
+
+  const final = await getDayState(dateKey);
+  assert.equal(final.tracking.total, 999, "the concurrent tracking write must survive");
+  assert.equal(final.blocked.sites["example.com"], "week", "the scan's own blocked flag must still land");
 });
 
 test("getSettings: returns documented defaults when nothing is stored", async () => {
@@ -80,6 +110,19 @@ test("setSettings + getSettings: round-trips every field", async () => {
   assert.deepEqual(settings.siteCategories, { "example.com": "Work" });
   assert.equal(settings.challengeDifficulty, "hard");
   assert.equal(settings.customPassages.length, 1);
+});
+
+test("getSettings: drops a malformed schedule entry instead of letting it reach isOutsideSchedule", async () => {
+  await setSettings({
+    siteSchedules: {
+      "good.com": { startHour: 9, endHour: 17 },
+      "reversed.com": { startHour: 17, endHour: 9 },
+      "missing.com": { startHour: 9 },
+      "stringy.com": { startHour: "9", endHour: "17" },
+    },
+  });
+  const settings = await getSettings();
+  assert.deepEqual(settings.siteSchedules, { "good.com": { startHour: 9, endHour: 17 } });
 });
 
 test("getSettings: rejects an invalid challengeDifficulty and falls back to medium", async () => {
