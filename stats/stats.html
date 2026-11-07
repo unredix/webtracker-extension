@@ -9,11 +9,20 @@
   <body>
     <div class="page">
       <div class="title">
-        <h1>Weekly Overview</h1>
-        <p class="subtitle">Last 7 days of browsing activity</p>
+        <h1 id="page-title">Weekly Overview</h1>
+        <p class="subtitle" id="page-subtitle">Last 7 days of browsing activity</p>
+      </div>
+
+      <div class="range-row" id="range-row">
+        <button type="button" class="range-btn" data-days="7">7 days</button>
+        <button type="button" class="range-btn" data-days="30">30 days</button>
       </div>
 
       <div class="stat-row" id="stat-row"></div>
+      <p class="delta-legend" id="delta-legend" hidden>
+        <span class="delta-swatch delta-down"></span> less time tracked than the previous period
+        <span class="delta-swatch delta-up"></span> more time tracked
+      </p>
 
       <section class="card">
         <h2>Time per day</h2>
@@ -21,8 +30,13 @@
       </section>
 
       <section class="card">
-        <h2>Top sites this week</h2>
+        <h2>Top sites</h2>
         <div class="chart-wrap" id="sites-chart"></div>
+      </section>
+
+      <section class="card">
+        <h2>Time by category</h2>
+        <div class="chart-wrap" id="categories-chart"></div>
       </section>
     </div>
     <div class="tooltip" id="tooltip" role="tooltip" hidden></div>

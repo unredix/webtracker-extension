@@ -1,5 +1,9 @@
-import { getSettings, setSettings, normalizeHostname, getKnownHostnames } from "../lib/storage.js";
+import { getSettings, setSettings, normalizeHostname, getKnownHostnames, getKnownCategories } from "../lib/storage.js";
 import { formatMinutes } from "../lib/time.js";
+import { parseTimeToHours, formatHoursToTime } from "../lib/limits.js";
+
+const PERIOD_MAX_MINUTES = { day: 1440, week: 10080, month: 44640 };
+const PERIOD_LABEL = { day: "day", week: "week", month: "month" };
 
 document.addEventListener("DOMContentLoaded", async function () {
   const ignoreListInput = document.getElementById("ignore-url");
@@ -9,6 +13,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   const limitUrlInput = document.getElementById("limit-url");
   const limitMinutesInput = document.getElementById("limit-minutes");
+  const limitPeriodSelect = document.getElementById("limit-period");
   const limitError = document.getElementById("limit-error");
   const addLimitButton = document.getElementById("add-limit");
   const siteLimitsList = document.getElementById("site-limits-list");
@@ -21,7 +26,44 @@ document.addEventListener("DOMContentLoaded", async function () {
   const globalLimitPresets = document.getElementById("global-limit-presets");
   const globalLimitMinutesPreview = document.getElementById("global-limit-minutes-preview");
 
+  const globalWeeklyLimitEnabled = document.getElementById("global-weekly-limit-enabled");
+  const globalWeeklyLimitMinutes = document.getElementById("global-weekly-limit-minutes");
+  const globalWeeklyLimitPresets = document.getElementById("global-weekly-limit-presets");
+  const globalWeeklyLimitMinutesPreview = document.getElementById("global-weekly-limit-minutes-preview");
+
+  const globalMonthlyLimitEnabled = document.getElementById("global-monthly-limit-enabled");
+  const globalMonthlyLimitMinutes = document.getElementById("global-monthly-limit-minutes");
+  const globalMonthlyLimitPresets = document.getElementById("global-monthly-limit-presets");
+  const globalMonthlyLimitMinutesPreview = document.getElementById("global-monthly-limit-minutes-preview");
+
+  const graceMinutesInput = document.getElementById("grace-minutes");
+  const graceError = document.getElementById("grace-error");
+
+  const scheduleUrlInput = document.getElementById("schedule-url");
+  const scheduleStartInput = document.getElementById("schedule-start");
+  const scheduleEndInput = document.getElementById("schedule-end");
+  const addScheduleButton = document.getElementById("add-schedule");
+  const scheduleError = document.getElementById("schedule-error");
+  const schedulesList = document.getElementById("schedules-list");
+
+  const categoryUrlInput = document.getElementById("category-url");
+  const categoryNameInput = document.getElementById("category-name");
+  const addCategoryButton = document.getElementById("add-category");
+  const categoryError = document.getElementById("category-error");
+  const categoriesList = document.getElementById("categories-list");
+
+  const difficultyRow = document.getElementById("difficulty-row");
+
+  const customTitleInput = document.getElementById("custom-title");
+  const customTextInput = document.getElementById("custom-text");
+  const customQuestionInput = document.getElementById("custom-question");
+  const customChoiceInputs = Array.from(document.querySelectorAll(".custom-choice-input"));
+  const addCustomPassageButton = document.getElementById("add-custom-passage");
+  const customPassageError = document.getElementById("custom-passage-error");
+  const customPassagesList = document.getElementById("custom-passages-list");
+
   const knownHostsList = document.getElementById("known-hosts");
+  const knownCategoriesList = document.getElementById("known-categories");
 
   const saveButton = document.getElementById("save-changes");
   const cancelButton = document.getElementById("cancel-changes");
@@ -36,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     cancelButton.style.display = "none";
   }
 
-  function makeListItem(labelText, onDelete) {
+  function makeListItem(labelText) {
     const listItem = document.createElement("li");
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "✖";
@@ -48,7 +90,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     deleteButton.style.marginRight = "10px";
     deleteButton.addEventListener("click", function () {
       listItem.remove();
-      onDelete();
       showButtons();
     });
 
@@ -61,16 +102,59 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function addIgnoredSiteItem(hostname) {
-    const listItem = makeListItem(hostname, function () {});
+    const listItem = makeListItem(hostname);
     listItem.dataset.site = hostname;
     ignoreList.appendChild(listItem);
   }
 
-  function addSiteLimitItem(hostname, minutes) {
-    const listItem = makeListItem(`${hostname} — ${minutes} min`, function () {});
+  function currentIgnoredHostnames() {
+    return Array.from(ignoreList.children).map((li) => li.dataset.site);
+  }
+
+  function currentConfiguredHostnames() {
+    const lists = [siteLimitsList, schedulesList, categoriesList];
+    return new Set(lists.flatMap((list) => Array.from(list.children).map((li) => li.dataset.site)));
+  }
+
+  function addSiteLimitItem(hostname, minutes, period) {
+    const listItem = makeListItem(`${hostname} — ${formatMinutes(minutes)} / ${PERIOD_LABEL[period]}`);
     listItem.dataset.site = hostname;
     listItem.dataset.minutes = String(minutes);
+    listItem.dataset.period = period;
     siteLimitsList.appendChild(listItem);
+  }
+
+  function addScheduleItem(hostname, startHour, endHour) {
+    const listItem = makeListItem(`${hostname} — ${formatHoursToTime(startHour)} to ${formatHoursToTime(endHour)}`);
+    listItem.dataset.site = hostname;
+    listItem.dataset.startHour = String(startHour);
+    listItem.dataset.endHour = String(endHour);
+    schedulesList.appendChild(listItem);
+  }
+
+  function addCategoryItem(hostname, category) {
+    const listItem = makeListItem(`${hostname} — ${category}`);
+    listItem.dataset.site = hostname;
+    listItem.dataset.category = category;
+    categoriesList.appendChild(listItem);
+  }
+
+  function addCustomPassageItem(passage) {
+    const listItem = makeListItem(passage.title);
+    listItem.dataset.passage = JSON.stringify(passage);
+    customPassagesList.appendChild(listItem);
+  }
+
+  function setGlobalRow(enabledEl, minutesEl, value) {
+    if (value) {
+      enabledEl.checked = true;
+      minutesEl.value = value;
+      minutesEl.disabled = false;
+    } else {
+      enabledEl.checked = false;
+      minutesEl.value = "";
+      minutesEl.disabled = true;
+    }
   }
 
   async function loadOptions() {
@@ -80,19 +164,32 @@ document.addEventListener("DOMContentLoaded", async function () {
     settings.ignoredSites.forEach(addIgnoredSiteItem);
 
     siteLimitsList.innerHTML = "";
-    Object.entries(settings.siteLimits).forEach(([hostname, minutes]) => addSiteLimitItem(hostname, minutes));
+    Object.entries(settings.siteLimits).forEach(([hostname, minutes]) => addSiteLimitItem(hostname, minutes, "day"));
+    Object.entries(settings.siteWeeklyLimits).forEach(([hostname, minutes]) => addSiteLimitItem(hostname, minutes, "week"));
+    Object.entries(settings.siteMonthlyLimits).forEach(([hostname, minutes]) => addSiteLimitItem(hostname, minutes, "month"));
+
+    schedulesList.innerHTML = "";
+    Object.entries(settings.siteSchedules).forEach(([hostname, schedule]) =>
+      addScheduleItem(hostname, schedule.startHour, schedule.endHour)
+    );
+
+    categoriesList.innerHTML = "";
+    Object.entries(settings.siteCategories).forEach(([hostname, category]) => addCategoryItem(hostname, category));
+    populateKnownCategories(settings);
+
+    customPassagesList.innerHTML = "";
+    settings.customPassages.forEach(addCustomPassageItem);
+
+    const difficultyInput = difficultyRow.querySelector(`input[value="${settings.challengeDifficulty}"]`);
+    if (difficultyInput) difficultyInput.checked = true;
 
     ignoreIncognitoCheckbox.checked = settings.ignoreInIncognito;
 
-    if (settings.globalDailyLimitMinutes) {
-      globalLimitEnabled.checked = true;
-      globalLimitMinutes.value = settings.globalDailyLimitMinutes;
-      globalLimitMinutes.disabled = false;
-    } else {
-      globalLimitEnabled.checked = false;
-      globalLimitMinutes.value = "";
-      globalLimitMinutes.disabled = true;
-    }
+    setGlobalRow(globalLimitEnabled, globalLimitMinutes, settings.globalDailyLimitMinutes);
+    setGlobalRow(globalWeeklyLimitEnabled, globalWeeklyLimitMinutes, settings.globalWeeklyLimitMinutes);
+    setGlobalRow(globalMonthlyLimitEnabled, globalMonthlyLimitMinutes, settings.globalMonthlyLimitMinutes);
+
+    graceMinutesInput.value = settings.graceMinutes || "";
   }
 
   async function populateKnownHosts() {
@@ -102,6 +199,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       const option = document.createElement("option");
       option.value = hostname;
       knownHostsList.appendChild(option);
+    });
+  }
+
+  function populateKnownCategories(settings) {
+    knownCategoriesList.innerHTML = "";
+    getKnownCategories(settings).forEach((category) => {
+      const option = document.createElement("option");
+      option.value = category;
+      knownCategoriesList.appendChild(option);
     });
   }
 
@@ -121,13 +227,39 @@ document.addEventListener("DOMContentLoaded", async function () {
     input.addEventListener("input", () => updatePreview(input, previewEl));
   }
 
+  function wireGlobalRow(enabledEl, minutesEl) {
+    enabledEl.addEventListener("change", function () {
+      minutesEl.disabled = !enabledEl.checked;
+      showButtons();
+    });
+    minutesEl.addEventListener("change", showButtons);
+  }
+
+  function syncLimitMinutesMax() {
+    limitMinutesInput.max = String(PERIOD_MAX_MINUTES[limitPeriodSelect.value] || PERIOD_MAX_MINUTES.day);
+  }
+  limitPeriodSelect.addEventListener("change", syncLimitMinutesMax);
+  syncLimitMinutesMax();
+
   wirePresets(limitPresets, limitMinutesInput, limitMinutesPreview);
   wirePresets(globalLimitPresets, globalLimitMinutes, globalLimitMinutesPreview);
+  wirePresets(globalWeeklyLimitPresets, globalWeeklyLimitMinutes, globalWeeklyLimitMinutesPreview);
+  wirePresets(globalMonthlyLimitPresets, globalMonthlyLimitMinutes, globalMonthlyLimitMinutesPreview);
+
+  wireGlobalRow(globalLimitEnabled, globalLimitMinutes);
+  wireGlobalRow(globalWeeklyLimitEnabled, globalWeeklyLimitMinutes);
+  wireGlobalRow(globalMonthlyLimitEnabled, globalMonthlyLimitMinutes);
+
+  function refreshAllPreviews() {
+    updatePreview(limitMinutesInput, limitMinutesPreview);
+    updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
+    updatePreview(globalWeeklyLimitMinutes, globalWeeklyLimitMinutesPreview);
+    updatePreview(globalMonthlyLimitMinutes, globalMonthlyLimitMinutesPreview);
+  }
 
   await loadOptions();
   await populateKnownHosts();
-  updatePreview(limitMinutesInput, limitMinutesPreview);
-  updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
+  refreshAllPreviews();
 
   function addLimitFromInputs() {
     limitError.textContent = "";
@@ -138,20 +270,122 @@ document.addEventListener("DOMContentLoaded", async function () {
       return;
     }
 
+    const period = limitPeriodSelect.value;
+    const maxMinutes = PERIOD_MAX_MINUTES[period] || PERIOD_MAX_MINUTES.day;
     const minutes = Number(limitMinutesInput.value);
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
-      limitError.textContent = "Enter a whole number of minutes (1-1440).";
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > maxMinutes) {
+      limitError.textContent = `Enter a whole number of minutes (1-${maxMinutes}).`;
       return;
     }
 
     const existing = Array.from(siteLimitsList.children);
-    const duplicate = existing.find((li) => li.dataset.site === hostname);
+    const duplicate = existing.find((li) => li.dataset.site === hostname && li.dataset.period === period);
     if (duplicate) duplicate.remove();
 
-    addSiteLimitItem(hostname, minutes);
+    addSiteLimitItem(hostname, minutes, period);
     limitUrlInput.value = "";
     limitMinutesInput.value = "";
     limitMinutesPreview.textContent = "";
+    showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      limitError.textContent = `Note: ${hostname} is on your ignore list, so this limit won't take effect until it's removed from Ignore.`;
+    }
+  }
+
+  function addScheduleFromInputs() {
+    scheduleError.textContent = "";
+
+    const hostname = normalizeHostname(scheduleUrlInput.value);
+    if (!hostname) {
+      scheduleError.textContent = "Enter a valid site (e.g. example.com).";
+      return;
+    }
+
+    const startHour = parseTimeToHours(scheduleStartInput.value);
+    const endHour = parseTimeToHours(scheduleEndInput.value);
+    if (startHour === null || endHour === null || startHour >= endHour) {
+      scheduleError.textContent = "Enter a start time earlier than the end time.";
+      return;
+    }
+
+    const existing = Array.from(schedulesList.children);
+    const duplicate = existing.find((li) => li.dataset.site === hostname);
+    if (duplicate) duplicate.remove();
+
+    addScheduleItem(hostname, startHour, endHour);
+    scheduleUrlInput.value = "";
+    showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      scheduleError.textContent = `Note: ${hostname} is on your ignore list, so this schedule won't take effect until it's removed from Ignore.`;
+    }
+  }
+
+  function addCategoryFromInputs() {
+    categoryError.textContent = "";
+
+    const hostname = normalizeHostname(categoryUrlInput.value);
+    if (!hostname) {
+      categoryError.textContent = "Enter a valid site (e.g. example.com).";
+      return;
+    }
+
+    const category = categoryNameInput.value.trim();
+    if (!category) {
+      categoryError.textContent = "Enter a category name.";
+      return;
+    }
+
+    const existing = Array.from(categoriesList.children);
+    const duplicate = existing.find((li) => li.dataset.site === hostname);
+    if (duplicate) duplicate.remove();
+
+    addCategoryItem(hostname, category);
+    categoryUrlInput.value = "";
+    categoryNameInput.value = "";
+    showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      categoryError.textContent = `Note: ${hostname} is on your ignore list, so it's never tracked and won't appear in this category's breakdown.`;
+    }
+  }
+
+  function addCustomPassageFromInputs() {
+    customPassageError.textContent = "";
+
+    const title = customTitleInput.value.trim();
+    const text = customTextInput.value.trim();
+    const prompt = customQuestionInput.value.trim();
+    const choices = customChoiceInputs.map((input) => input.value.trim());
+    const correctIndex = Number(document.querySelector('input[name="custom-correct"]:checked').value);
+
+    if (!title || !text || !prompt) {
+      customPassageError.textContent = "Fill in a title, passage text, and question.";
+      return;
+    }
+    if (choices.some((choice) => !choice)) {
+      customPassageError.textContent = "Fill in all four choices.";
+      return;
+    }
+    const distinctChoices = new Set(choices.map((choice) => choice.toLowerCase()));
+    if (distinctChoices.size < choices.length) {
+      customPassageError.textContent = "Choices must all be different.";
+      return;
+    }
+
+    addCustomPassageItem({
+      id: crypto.randomUUID(),
+      title,
+      text,
+      question: { prompt, choices, correctIndex },
+    });
+
+    customTitleInput.value = "";
+    customTextInput.value = "";
+    customQuestionInput.value = "";
+    customChoiceInputs.forEach((input) => (input.value = ""));
+    document.querySelector('input[name="custom-correct"][value="0"]').checked = true;
     showButtons();
   }
 
@@ -175,6 +409,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     addIgnoredSiteItem(hostname);
     ignoreListInput.value = "";
     showButtons();
+
+    // Ignoring a site silently overrides any limit/schedule/category already
+    // configured for it (lib/limits.js's isBlocked exits immediately for an
+    // ignored hostname) - that configuration then never fires again, with
+    // nothing else telling the user why. Not a hard block, just a heads-up.
+    if (currentConfiguredHostnames().has(hostname)) {
+      ignoreListError.textContent = `Note: ${hostname} already has a limit, schedule, or category set - those won't take effect while it's ignored.`;
+    }
   });
 
   addLimitButton.addEventListener("click", addLimitFromInputs);
@@ -187,52 +429,123 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   });
 
-  ignoreIncognitoCheckbox.addEventListener("change", showButtons);
-
-  globalLimitEnabled.addEventListener("change", function () {
-    globalLimitMinutes.disabled = !globalLimitEnabled.checked;
-    showButtons();
+  addScheduleButton.addEventListener("click", addScheduleFromInputs);
+  scheduleUrlInput.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addScheduleFromInputs();
   });
-  globalLimitMinutes.addEventListener("change", showButtons);
+
+  addCategoryButton.addEventListener("click", addCategoryFromInputs);
+  [categoryUrlInput, categoryNameInput].forEach((input) => {
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      addCategoryFromInputs();
+    });
+  });
+
+  addCustomPassageButton.addEventListener("click", addCustomPassageFromInputs);
+
+  difficultyRow.querySelectorAll('input[name="challenge-difficulty"]').forEach((input) => {
+    input.addEventListener("change", showButtons);
+  });
+
+  ignoreIncognitoCheckbox.addEventListener("change", showButtons);
+  graceMinutesInput.addEventListener("change", showButtons);
 
   cancelButton.addEventListener("click", async function () {
-    ignoreListError.textContent = "";
-    limitError.textContent = "";
-    globalLimitError.textContent = "";
+    clearAllErrors();
     await loadOptions();
-    updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
+    refreshAllPreviews();
     hideButtons();
   });
 
-  saveButton.addEventListener("click", async function () {
+  function readGlobalRow(enabledEl, minutesEl, maxMinutes) {
+    if (!enabledEl.checked) return { value: null, valid: true };
+    const minutes = Number(minutesEl.value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > maxMinutes) return { value: null, valid: false };
+    return { value: minutes, valid: true };
+  }
+
+  function clearAllErrors() {
+    ignoreListError.textContent = "";
+    limitError.textContent = "";
     globalLimitError.textContent = "";
+    graceError.textContent = "";
+    scheduleError.textContent = "";
+    categoryError.textContent = "";
+    customPassageError.textContent = "";
+  }
+
+  saveButton.addEventListener("click", async function () {
+    // Clear every section's error/note paragraph up front - previously only
+    // globalLimitError and graceError were cleared here, so a stale message
+    // from an earlier failed "add" in a different card (e.g. a typo'd
+    // hostname in Per-site limits) would survive an otherwise-successful
+    // save and keep implying something was still wrong.
+    clearAllErrors();
 
     const ignoredSites = Array.from(ignoreList.children).map((li) => li.dataset.site);
 
     const siteLimits = {};
+    const siteWeeklyLimits = {};
+    const siteMonthlyLimits = {};
     Array.from(siteLimitsList.children).forEach((li) => {
-      siteLimits[li.dataset.site] = Number(li.dataset.minutes);
+      const target = { day: siteLimits, week: siteWeeklyLimits, month: siteMonthlyLimits }[li.dataset.period] || siteLimits;
+      target[li.dataset.site] = Number(li.dataset.minutes);
     });
 
-    let globalDailyLimitMinutes = null;
-    if (globalLimitEnabled.checked) {
-      const minutes = Number(globalLimitMinutes.value);
-      if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
-        globalLimitError.textContent = "Enter a whole number of minutes (1-1440).";
-        return;
-      }
-      globalDailyLimitMinutes = minutes;
+    const siteSchedules = {};
+    Array.from(schedulesList.children).forEach((li) => {
+      siteSchedules[li.dataset.site] = {
+        startHour: Number(li.dataset.startHour),
+        endHour: Number(li.dataset.endHour),
+      };
+    });
+
+    const siteCategories = {};
+    Array.from(categoriesList.children).forEach((li) => {
+      siteCategories[li.dataset.site] = li.dataset.category;
+    });
+
+    const customPassages = Array.from(customPassagesList.children).map((li) => JSON.parse(li.dataset.passage));
+
+    const difficultyChecked = difficultyRow.querySelector('input[name="challenge-difficulty"]:checked');
+    const challengeDifficulty = difficultyChecked ? difficultyChecked.value : "medium";
+
+    const daily = readGlobalRow(globalLimitEnabled, globalLimitMinutes, PERIOD_MAX_MINUTES.day);
+    const weekly = readGlobalRow(globalWeeklyLimitEnabled, globalWeeklyLimitMinutes, PERIOD_MAX_MINUTES.week);
+    const monthly = readGlobalRow(globalMonthlyLimitEnabled, globalMonthlyLimitMinutes, PERIOD_MAX_MINUTES.month);
+    if (!daily.valid || !weekly.valid || !monthly.valid) {
+      globalLimitError.textContent = "Enter a whole number of minutes within range for each enabled global limit.";
+      return;
+    }
+
+    const graceMinutes = graceMinutesInput.value ? Number(graceMinutesInput.value) : 0;
+    if (!Number.isInteger(graceMinutes) || graceMinutes < 0 || graceMinutes > 120) {
+      graceError.textContent = "Grace period must be a whole number of minutes (0-120).";
+      return;
     }
 
     await setSettings({
       ignoredSites,
       ignoreInIncognito: ignoreIncognitoCheckbox.checked,
       siteLimits,
-      globalDailyLimitMinutes,
+      siteWeeklyLimits,
+      siteMonthlyLimits,
+      globalDailyLimitMinutes: daily.value,
+      globalWeeklyLimitMinutes: weekly.value,
+      globalMonthlyLimitMinutes: monthly.value,
+      graceMinutes,
+      siteSchedules,
+      siteCategories,
+      customPassages,
+      challengeDifficulty,
     });
 
     await loadOptions();
-    updatePreview(globalLimitMinutes, globalLimitMinutesPreview);
+    refreshAllPreviews();
     await populateKnownHosts();
     hideButtons();
   });

@@ -6,6 +6,8 @@ const statusEl = document.getElementById("status");
 const siteEl = document.getElementById("cSite");
 const timeEl = document.getElementById("cTime");
 
+const PERIOD_LABEL = { day: "Daily", week: "Weekly", month: "Monthly" };
+
 let currentHostname = null;
 let tickInterval = null;
 
@@ -49,9 +51,55 @@ async function render() {
     return;
   }
 
+  // Daily site/global limits are checked live, from the exact same
+  // elapsedSeconds/liveTotalSeconds numbers the clock above is built from -
+  // deliberately not from isBlocked()'s stored `day.blocked` flag, which can
+  // lag up to ~60s behind. Mixing the two (stale stored flag for "blocked",
+  // fresh local math for "in grace") could make the popup visibly regress
+  // from a grace countdown back to a plain warning for a few seconds right
+  // as the grace window actually expires, before jumping to "blocked" once
+  // the background caught up. Deriving both from one consistent set of live
+  // numbers means it can only ever move forward: approaching -> grace ->
+  // blocked, never back.
+  const graceSeconds = (settings.graceMinutes || 0) * 60;
+
+  if (limitMinutes) {
+    const limitSeconds = limitMinutes * 60;
+    if (elapsedSeconds >= limitSeconds + graceSeconds) {
+      showStatus("Daily limit reached — complete a challenge to continue.");
+      return;
+    }
+    if (graceSeconds > 0 && elapsedSeconds >= limitSeconds) {
+      const remaining = Math.ceil((limitSeconds + graceSeconds - elapsedSeconds) / 60);
+      showStatus(`Limit reached — this site blocks in ${remaining} more minute${remaining === 1 ? "" : "s"}.`, "grace");
+      return;
+    }
+  }
+
+  if (settings.globalDailyLimitMinutes) {
+    const globalLimitSeconds = settings.globalDailyLimitMinutes * 60;
+    if (liveTotalSeconds >= globalLimitSeconds + graceSeconds) {
+      showStatus("Daily limit reached — complete a challenge to continue.");
+      return;
+    }
+    if (graceSeconds > 0 && liveTotalSeconds >= globalLimitSeconds) {
+      const remaining = Math.ceil((globalLimitSeconds + graceSeconds - liveTotalSeconds) / 60);
+      showStatus(`Daily limit reached — browsing blocks in ${remaining} more minute${remaining === 1 ? "" : "s"}.`, "grace");
+      return;
+    }
+  }
+
+  // Schedule windows and weekly/monthly caps can't be recomputed live from a
+  // single day's data (schedule needs no extra data, but staying consistent
+  // with the rest of this function; rolling caps need several days of
+  // storage), so these fall back to the background-confirmed state.
   const result = isBlocked(currentHostname, day, settings);
   if (result.blocked) {
-    showStatus("Daily limit reached — complete a challenge to continue.");
+    const message =
+      result.period === "schedule"
+        ? "Outside allowed hours — complete a challenge to continue."
+        : `${PERIOD_LABEL[result.period] || "Daily"} limit reached — complete a challenge to continue.`;
+    showStatus(message);
     return;
   }
 
@@ -84,10 +132,11 @@ function showStatus(message, variant = "info") {
   statusEl.textContent = message;
   statusEl.style.display = "block";
   statusEl.classList.toggle("status-warning", variant === "warning");
+  statusEl.classList.toggle("status-grace", variant === "grace");
 }
 
 function hideStatus() {
   statusEl.textContent = "";
   statusEl.style.display = "none";
-  statusEl.classList.remove("status-warning");
+  statusEl.classList.remove("status-warning", "status-grace");
 }

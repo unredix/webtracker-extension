@@ -34,13 +34,18 @@
         </div>
       </section>
       <section class="card">
-        <h2>Per-site daily limits</h2>
+        <h2>Per-site limits</h2>
         <div class="ignore">
           <div class="ignore-input">
             <p>Add a site limit</p>
             <div class="limit-row">
               <input type="text" name="limit-url" id="limit-url" placeholder="example.com" list="known-hosts" />
               <input type="number" name="limit-minutes" id="limit-minutes" placeholder="Minutes" min="1" max="1440" />
+              <select id="limit-period">
+                <option value="day">per day</option>
+                <option value="week">per week</option>
+                <option value="month">per month</option>
+              </select>
               <button type="button" id="add-limit">Add</button>
             </div>
             <div class="limit-presets" id="limit-presets">
@@ -58,26 +63,14 @@
         </div>
       </section>
       <section class="card">
-        <h2>Global daily limit</h2>
-        <div class="ignore-input">
+        <h2>Global limits</h2>
+        <div class="global-limit-row">
           <div class="checkbox-row">
-            <input
-              type="checkbox"
-              name="global-limit-enabled"
-              id="global-limit-enabled"
-              class="checkbox-option"
-            />
-            <label for="global-limit-enabled">Enable an overall daily browsing limit</label>
+            <input type="checkbox" name="global-limit-enabled" id="global-limit-enabled" class="checkbox-option" />
+            <label for="global-limit-enabled">Daily</label>
           </div>
           <div class="limit-row">
-            <input
-              type="number"
-              name="global-limit-minutes"
-              id="global-limit-minutes"
-              placeholder="Minutes"
-              min="1"
-              max="1440"
-            />
+            <input type="number" name="global-limit-minutes" id="global-limit-minutes" placeholder="Minutes" min="1" max="1440" />
           </div>
           <div class="limit-presets" id="global-limit-presets">
             <button type="button" class="preset-btn" data-minutes="60">1h</button>
@@ -86,7 +79,128 @@
             <button type="button" class="preset-btn" data-minutes="240">4h</button>
             <span class="limit-preview" id="global-limit-minutes-preview"></span>
           </div>
-          <p class="field-error" id="global-limit-error"></p>
+        </div>
+        <div class="global-limit-row">
+          <div class="checkbox-row">
+            <input type="checkbox" name="global-weekly-limit-enabled" id="global-weekly-limit-enabled" class="checkbox-option" />
+            <label for="global-weekly-limit-enabled">Weekly</label>
+          </div>
+          <div class="limit-row">
+            <input type="number" name="global-weekly-limit-minutes" id="global-weekly-limit-minutes" placeholder="Minutes" min="1" max="10080" />
+          </div>
+          <div class="limit-presets" id="global-weekly-limit-presets">
+            <button type="button" class="preset-btn" data-minutes="600">10h</button>
+            <button type="button" class="preset-btn" data-minutes="1200">20h</button>
+            <button type="button" class="preset-btn" data-minutes="1800">30h</button>
+            <span class="limit-preview" id="global-weekly-limit-minutes-preview"></span>
+          </div>
+        </div>
+        <div class="global-limit-row">
+          <div class="checkbox-row">
+            <input type="checkbox" name="global-monthly-limit-enabled" id="global-monthly-limit-enabled" class="checkbox-option" />
+            <label for="global-monthly-limit-enabled">Monthly</label>
+          </div>
+          <div class="limit-row">
+            <input type="number" name="global-monthly-limit-minutes" id="global-monthly-limit-minutes" placeholder="Minutes" min="1" max="44640" />
+          </div>
+          <div class="limit-presets" id="global-monthly-limit-presets">
+            <button type="button" class="preset-btn" data-minutes="3000">50h</button>
+            <button type="button" class="preset-btn" data-minutes="6000">100h</button>
+            <button type="button" class="preset-btn" data-minutes="9000">150h</button>
+          </div>
+          <span class="limit-preview" id="global-monthly-limit-minutes-preview"></span>
+        </div>
+        <p class="field-error" id="global-limit-error"></p>
+      </section>
+      <section class="card">
+        <h2>Grace period</h2>
+        <div class="ignore-input">
+          <p>
+            Extra time allowed after a <strong>daily</strong> site or global limit is reached, before
+            it actually blocks. Doesn't apply to weekly/monthly limits or scheduled access - those
+            instead give one minute's warning before blocking.
+          </p>
+          <div class="limit-row">
+            <input type="number" name="grace-minutes" id="grace-minutes" placeholder="Minutes" min="0" max="120" />
+          </div>
+          <p class="field-error" id="grace-error"></p>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Scheduled access</h2>
+        <div class="ignore">
+          <div class="ignore-input">
+            <p>Only allow a site between two times each day</p>
+            <div class="limit-row">
+              <input type="text" name="schedule-url" id="schedule-url" placeholder="example.com" list="known-hosts" />
+              <input type="time" name="schedule-start" id="schedule-start" value="09:00" />
+              <span class="schedule-to">to</span>
+              <input type="time" name="schedule-end" id="schedule-end" value="17:00" />
+              <button type="button" id="add-schedule">Add</button>
+            </div>
+            <p class="field-error" id="schedule-error"></p>
+          </div>
+          <div class="ignore-list">
+            <ul id="schedules-list"></ul>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Site categories</h2>
+        <div class="ignore">
+          <div class="ignore-input">
+            <p>Group sites for the Weekly Overview's category breakdown</p>
+            <div class="limit-row">
+              <input type="text" name="category-url" id="category-url" placeholder="example.com" list="known-hosts" />
+              <input type="text" name="category-name" id="category-name" placeholder="Category" list="known-categories" />
+              <button type="button" id="add-category">Add</button>
+            </div>
+            <p class="field-error" id="category-error"></p>
+          </div>
+          <div class="ignore-list">
+            <ul id="categories-list"></ul>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Challenge difficulty</h2>
+        <div class="ignore-input">
+          <p>How hard the math/reading challenge is when a limit is reached</p>
+          <div class="difficulty-row" id="difficulty-row">
+            <label><input type="radio" name="challenge-difficulty" value="easy" /> Easy</label>
+            <label><input type="radio" name="challenge-difficulty" value="medium" /> Medium</label>
+            <label><input type="radio" name="challenge-difficulty" value="hard" /> Hard</label>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Custom reading passages</h2>
+        <div class="ignore-input">
+          <p>Add your own short passage and a comprehension question</p>
+          <input type="text" id="custom-title" placeholder="Title" />
+          <textarea id="custom-text" placeholder="Passage text" rows="4"></textarea>
+          <input type="text" id="custom-question" placeholder="Question" />
+          <div class="custom-choices" id="custom-choices">
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="0" checked />
+              <input type="text" class="custom-choice-input" placeholder="Choice 1 (correct)" />
+            </div>
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="1" />
+              <input type="text" class="custom-choice-input" placeholder="Choice 2" />
+            </div>
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="2" />
+              <input type="text" class="custom-choice-input" placeholder="Choice 3" />
+            </div>
+            <div class="custom-choice-row">
+              <input type="radio" name="custom-correct" value="3" />
+              <input type="text" class="custom-choice-input" placeholder="Choice 4" />
+            </div>
+          </div>
+          <button type="button" id="add-custom-passage">Add passage</button>
+          <p class="field-error" id="custom-passage-error"></p>
+          <ul id="custom-passages-list"></ul>
         </div>
       </section>
       <!-- Language selection is deferred: chrome.i18n follows the browser's UI
@@ -99,6 +213,7 @@
       </footer>
     </div>
     <datalist id="known-hosts"></datalist>
+    <datalist id="known-categories"></datalist>
     <script src="options.js" type="module"></script>
   </body>
 </html>

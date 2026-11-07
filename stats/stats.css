@@ -32,11 +32,64 @@ body {
   font-size: 14px;
 }
 
+.range-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.range-btn {
+  background-color: rgb(32, 32, 32);
+  color: rgb(190, 190, 190);
+  border: 1px solid rgb(70, 70, 70);
+  border-radius: 14px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.range-btn:hover {
+  border-color: rgb(133, 133, 255);
+  color: rgb(133, 133, 255);
+}
+
+.range-btn.active {
+  background-color: rgb(133, 133, 255);
+  border-color: rgb(133, 133, 255);
+  color: white;
+}
+
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+}
+
+.delta-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: rgb(150, 150, 150);
+  font-size: 12px;
+  margin: 0 0 20px;
+}
+
+.delta-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.delta-swatch.delta-down {
+  background-color: rgb(76, 175, 120);
+}
+
+.delta-swatch.delta-up {
+  background-color: rgb(224, 160, 48);
 }
 
 .stat-tile {
@@ -57,6 +110,25 @@ body {
   font-size: 22px;
   font-weight: 600;
   margin: 0;
+}
+
+.stat-tile .stat-delta {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stat-tile .stat-delta.delta-down {
+  color: rgb(76, 175, 120);
+}
+
+.stat-tile .stat-delta.delta-up {
+  color: rgb(224, 160, 48);
+}
+
+.stat-tile .stat-delta.delta-flat {
+  color: rgb(150, 150, 150);
 }
 
 .card {
