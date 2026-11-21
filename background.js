@@ -22,6 +22,22 @@ const MAX_FLUSH_SECONDS = 600; // cap a single flush (e.g. after OS sleep) so a 
 
 let activeSession = null;
 
+// flush() is called from seven different event handlers with no natural
+// ordering between them (a fast tab-switch can land right on the once-a-
+// minute heartbeat). Without serialization, two overlapping calls would both
+// read the same stale activeSession.startedAt, double-count the same elapsed
+// interval, and race two saveDayState writes to the same key. Queue every
+// call behind a single promise chain so only one doFlush() body ever runs
+// at a time; a throwing call still lets the chain continue for the next one.
+// Declared here, before wakeAndReconcile() is invoked below, rather than
+// next to flush() itself further down the file: wakeAndReconcile() calls
+// flush() synchronously as its first line, and a `let` binding stays in its
+// temporal dead zone until the module's evaluation actually reaches its
+// declaration - so declaring it only once flush() is defined (textually
+// later) let every service-worker cold start throw "Cannot access
+// 'flushChain' before initialization" (regression).
+let flushChain = Promise.resolve();
+
 chrome.idle.setDetectionInterval(IDLE_DETECTION_SECONDS);
 chrome.alarms.create("heartbeat", { periodInMinutes: 1 });
 
@@ -132,15 +148,6 @@ async function wakeAndReconcile() {
     // Leave the just-flushed state as-is; the next event will retry reconciliation.
   }
 }
-
-// flush() is called from seven different event handlers with no natural
-// ordering between them (a fast tab-switch can land right on the once-a-
-// minute heartbeat). Without serialization, two overlapping calls would both
-// read the same stale activeSession.startedAt, double-count the same elapsed
-// interval, and race two saveDayState writes to the same key. Queue every
-// call behind a single promise chain so only one doFlush() body ever runs
-// at a time; a throwing call still lets the chain continue for the next one.
-let flushChain = Promise.resolve();
 
 function flush() {
   const run = flushChain.then(() => doFlush());
@@ -560,7 +567,15 @@ function handleMessage(message, sender, sendResponse) {
     if (message?.type === "setFocusMode") {
       const enabled = !!message.enabled;
       await setFocusModeEnabled(enabled);
-      await applyFocusModeContentSetting(enabled);
+      try {
+        await applyFocusModeContentSetting(enabled);
+      } catch {
+        // The flag above is already persisted and is what actually gates
+        // site blocking; a content-setting failure here (e.g. an
+        // environment where the permission isn't active) must not stop
+        // sendResponse from firing below - wakeAndReconcile() retries this
+        // on every later wake regardless.
+      }
       await flush();
       if (enabled) {
         // Enabling is a deliberate, explicit action - re-check and kick the
