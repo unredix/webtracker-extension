@@ -43,10 +43,18 @@ const cooldownSection = document.getElementById("cooldown-challenge");
 const cooldownTimer = document.getElementById("cooldown-timer");
 const cooldownContinue = document.getElementById("cooldown-continue");
 
+const focusModeSection = document.getElementById("focus-mode");
+const focusModeContinueButton = document.getElementById("focus-mode-continue");
+
 const PERIOD_LABEL = { day: "Daily", week: "Weekly", month: "Monthly", schedule: "Scheduled access" };
 const periodLabel = PERIOD_LABEL[period] || "Daily";
 
-if (period === "schedule") {
+if (period === "focus") {
+  heading.textContent = `${site} is blocked — Focus Mode is on`;
+  subheading.textContent = "This site is on your Focus mode block list. Turn off Focus mode to access it again.";
+  choiceSection.hidden = true;
+  focusModeSection.hidden = false;
+} else if (period === "schedule") {
   heading.textContent = `${site} is outside its allowed hours`;
   subheading.textContent = `Complete a quick challenge to unlock ${site} for the rest of today anyway.`;
 } else {
@@ -278,6 +286,15 @@ async function completeChallenge() {
   location.replace(from);
 }
 
+// A focus-mode block isn't challenge-unlockable - only turning Focus mode
+// off restores access, for every blocked site at once, so this sends
+// setFocusMode directly rather than completeChallenge (there's no
+// day.unlocked entry for a focus block).
+focusModeContinueButton.addEventListener("click", async () => {
+  await chrome.runtime.sendMessage({ type: "setFocusMode", enabled: false });
+  location.replace(from);
+});
+
 // Each challenge's actual cost (streak length, pass ratio, wait time) used
 // to only be revealed after committing to it - all four choices looked
 // equally weighted even though they aren't. Fill in a short caption on each
@@ -291,4 +308,4 @@ async function populateChoiceCaptions() {
   document.getElementById("caption-typing").textContent = "exact match";
   document.getElementById("caption-cooldown").textContent = `~${getCooldownSeconds(challengeDifficulty)}s wait`;
 }
-populateChoiceCaptions();
+if (period !== "focus") populateChoiceCaptions();

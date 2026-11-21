@@ -7,6 +7,8 @@ import {
   pruneOldDayKeys,
   getActiveSession,
   saveActiveSession,
+  getFocusModeEnabled,
+  setFocusModeEnabled,
 } from "./lib/storage.js";
 import { isBlocked, evaluateLimits, evaluateWarnings, evaluateGraceStarted, exceedsRollingLimit } from "./lib/limits.js";
 
@@ -32,6 +34,27 @@ chrome.alarms.onAlarm.addListener(handleAlarm);
 chrome.runtime.onMessage.addListener(handleMessage);
 
 wakeAndReconcile();
+
+// Mirrors Focus mode's on/off flag onto Chrome's own notification content
+// setting, so turning it on also stops websites' own notification popups
+// (not just this extension's). `clear()` only removes rules *this
+// extension* added via `set()` - it can't touch the user's own per-site
+// exceptions from chrome://settings/content/notifications - so there's
+// nothing to snapshot/restore: clearing the one blanket rule this function
+// ever sets is a full, exact undo. Content-setting rules an extension sets
+// aren't guaranteed to survive a full Chrome restart, so this is re-applied
+// on every service-worker wake (see wakeAndReconcile), not just when the
+// toggle itself fires.
+async function applyFocusModeContentSetting(enabled) {
+  if (enabled) {
+    await chrome.contentSettings.notifications.set({
+      primaryPattern: "<all_urls>",
+      setting: "block",
+    });
+  } else {
+    await chrome.contentSettings.notifications.clear({ scope: "regular" });
+  }
+}
 
 function hostnameFromUrl(url) {
   try {
@@ -63,6 +86,12 @@ async function loadActiveSession() {
 // re-deriving what's actually on screen right now.
 async function wakeAndReconcile() {
   await flush();
+
+  try {
+    await applyFocusModeContentSetting(await getFocusModeEnabled());
+  } catch {
+    // Retried on the next wake; must not block the tracking/kick logic below.
+  }
 
   try {
     const win = await chrome.windows.getLastFocused({ populate: false });
@@ -123,6 +152,7 @@ async function doFlush() {
   const now = Date.now();
   await loadActiveSession();
   const settings = await getSettings();
+  const focusModeEnabled = await getFocusModeEnabled();
   const wasCounting =
     activeSession.hostname &&
     activeSession.windowFocused &&
@@ -158,14 +188,14 @@ async function doFlush() {
       await saveDayState(dateKey, day);
 
       if (siteJustExceeded.length || globalJustExceeded) {
-        notifyLimitReached(siteJustExceeded, globalJustExceeded);
-        await maybeKickActiveTab(day, settings);
+        notifyLimitReached(siteJustExceeded, globalJustExceeded, focusModeEnabled);
+        await maybeKickActiveTab(day, settings, focusModeEnabled);
       }
       if (siteJustWarned.length || globalJustWarned) {
-        notifyApproachingLimit(siteJustWarned, globalJustWarned, settings);
+        notifyApproachingLimit(siteJustWarned, globalJustWarned, settings, focusModeEnabled);
       }
       if (siteJustGraced.length || globalJustGraced) {
-        notifyGraceStarted(siteJustGraced, globalJustGraced, settings);
+        notifyGraceStarted(siteJustGraced, globalJustGraced, settings, focusModeEnabled);
       }
     }
   }
@@ -174,9 +204,9 @@ async function doFlush() {
   await saveActiveSession(activeSession);
 }
 
-async function maybeKickActiveTab(day, settings) {
+async function maybeKickActiveTab(day, settings, focusModeEnabled = false) {
   if (!activeSession.hostname || activeSession.tabId == null) return;
-  const result = isBlocked(activeSession.hostname, day, settings);
+  const result = isBlocked(activeSession.hostname, day, settings, undefined, focusModeEnabled);
   if (!result.blocked) return;
 
   try {
@@ -204,9 +234,9 @@ async function maybeKickActiveTab(day, settings) {
 // notification fires; only if it's *still* blocked on the next tick does the
 // tab actually get redirected. Returns true if `day.pendingKick` changed and
 // needs saving.
-async function maybeWarnOrKick(day, settings) {
+async function maybeWarnOrKick(day, settings, focusModeEnabled = false) {
   if (!activeSession.hostname || activeSession.tabId == null) return false;
-  const result = isBlocked(activeSession.hostname, day, settings);
+  const result = isBlocked(activeSession.hostname, day, settings, undefined, focusModeEnabled);
 
   if (!result.blocked) {
     if (day.pendingKick.sites[activeSession.hostname]) {
@@ -220,8 +250,11 @@ async function maybeWarnOrKick(day, settings) {
     return false;
   }
 
-  if (result.period === "day") {
-    await maybeKickActiveTab(day, settings);
+  // Focus-mode blocks, like daily-limit blocks, kick immediately - the user
+  // already made a deliberate, explicit choice when toggling Focus mode on,
+  // so there's no gradually-crossed threshold to warn about first.
+  if (result.period === "day" || result.period === "focus") {
+    await maybeKickActiveTab(day, settings, focusModeEnabled);
     return false;
   }
 
@@ -232,7 +265,7 @@ async function maybeWarnOrKick(day, settings) {
       : day.pendingKick.sites[activeSession.hostname] === pendingTag;
 
   if (alreadyWarned) {
-    await maybeKickActiveTab(day, settings);
+    await maybeKickActiveTab(day, settings, focusModeEnabled);
     return false;
   }
 
@@ -241,11 +274,12 @@ async function maybeWarnOrKick(day, settings) {
   } else {
     day.pendingKick.sites[activeSession.hostname] = pendingTag;
   }
-  notifyAboutToBlock(activeSession.hostname, result);
+  notifyAboutToBlock(activeSession.hostname, result, focusModeEnabled);
   return true;
 }
 
-function notifyAboutToBlock(hostname, result) {
+function notifyAboutToBlock(hostname, result, focusModeEnabled = false) {
+  if (focusModeEnabled) return;
   const periodLabel = { week: "weekly", month: "monthly", schedule: "scheduled-access" }[result.period] || result.period;
   const message =
     result.reason === "global"
@@ -259,7 +293,8 @@ function notifyAboutToBlock(hostname, result) {
   });
 }
 
-function notifyLimitReached(siteJustExceeded, globalJustExceeded) {
+function notifyLimitReached(siteJustExceeded, globalJustExceeded, focusModeEnabled = false) {
+  if (focusModeEnabled) return;
   if (siteJustExceeded.length) {
     for (const hostname of siteJustExceeded) {
       chrome.notifications.create(`limit-site-${hostname}-${Date.now()}`, {
@@ -280,7 +315,8 @@ function notifyLimitReached(siteJustExceeded, globalJustExceeded) {
   }
 }
 
-function notifyApproachingLimit(siteJustWarned, globalJustWarned, settings) {
+function notifyApproachingLimit(siteJustWarned, globalJustWarned, settings, focusModeEnabled = false) {
+  if (focusModeEnabled) return;
   for (const hostname of siteJustWarned) {
     const limitMinutes = settings.siteLimits[hostname];
     chrome.notifications.create(`warn-site-${hostname}-${Date.now()}`, {
@@ -300,7 +336,8 @@ function notifyApproachingLimit(siteJustWarned, globalJustWarned, settings) {
   }
 }
 
-function notifyGraceStarted(siteJustGraced, globalJustGraced, settings) {
+function notifyGraceStarted(siteJustGraced, globalJustGraced, settings, focusModeEnabled = false) {
+  if (focusModeEnabled) return;
   for (const hostname of siteJustGraced) {
     chrome.notifications.create(`grace-site-${hostname}-${Date.now()}`, {
       type: "basic",
@@ -319,7 +356,8 @@ function notifyGraceStarted(siteJustGraced, globalJustGraced, settings) {
   }
 }
 
-function notifyRollingBlocks(newlyBlocked) {
+function notifyRollingBlocks(newlyBlocked, focusModeEnabled = false) {
+  if (focusModeEnabled) return;
   for (const item of newlyBlocked) {
     const periodLabel = item.period === "week" ? "weekly" : "monthly";
     if (item.scope === "site") {
@@ -348,7 +386,7 @@ function notifyRollingBlocks(newlyBlocked) {
 // Returns the day state the caller should use for any further checks this
 // tick (so it doesn't need its own extra getDayState() call), or null if
 // there was nothing configured to evaluate at all.
-async function evaluateRollingCaps(settings) {
+async function evaluateRollingCaps(settings, focusModeEnabled = false) {
   const hasAnyRollingLimit = ROLLING_PERIODS.some(
     (period) => Object.keys(settings[period.siteSetting]).length > 0 || settings[period.globalSetting]
   );
@@ -378,7 +416,7 @@ async function evaluateRollingCaps(settings) {
   if (snapshot.blocked.global && !fresh.blocked.global) fresh.blocked.global = snapshot.blocked.global;
 
   await saveDayState(dateKey, fresh);
-  notifyRollingBlocks(newlyBlocked);
+  notifyRollingBlocks(newlyBlocked, focusModeEnabled);
   return fresh;
 }
 
@@ -493,17 +531,18 @@ async function handleAlarm(alarm) {
   await pruneOldDayKeys();
 
   const settings = await getSettings();
+  const focusModeEnabled = await getFocusModeEnabled();
   // evaluateRollingCaps already has to read the latest day state to decide
   // whether anything newly tripped; reuse its result instead of fetching it
   // a third time this tick (flush() and this are the other two reads).
-  const day = (await evaluateRollingCaps(settings)) || (await getDayState());
+  const day = (await evaluateRollingCaps(settings, focusModeEnabled)) || (await getDayState());
 
   // Catch-all: covers cases flush()'s immediate check doesn't, like a
   // schedule window ending or a rolling cap just evaluated above, for
-  // whatever tab happens to be open right now. Daily blocks still kick
-  // immediately; schedule/rolling blocks get one tick of warning first (see
-  // maybeWarnOrKick).
-  const pendingKickChanged = await maybeWarnOrKick(day, settings);
+  // whatever tab happens to be open right now. Daily and focus-mode blocks
+  // still kick immediately; schedule/rolling blocks get one tick of warning
+  // first (see maybeWarnOrKick).
+  const pendingKickChanged = await maybeWarnOrKick(day, settings, focusModeEnabled);
   if (pendingKickChanged) await saveDayState(todayKey(), day);
 }
 
@@ -513,7 +552,27 @@ function handleMessage(message, sender, sendResponse) {
       await flush();
       const settings = await getSettings();
       const day = await getDayState();
-      sendResponse(isBlocked(message.hostname, day, settings));
+      const focusModeEnabled = await getFocusModeEnabled();
+      sendResponse(isBlocked(message.hostname, day, settings, undefined, focusModeEnabled));
+      return;
+    }
+
+    if (message?.type === "setFocusMode") {
+      const enabled = !!message.enabled;
+      await setFocusModeEnabled(enabled);
+      await applyFocusModeContentSetting(enabled);
+      await flush();
+      if (enabled) {
+        // Enabling is a deliberate, explicit action - re-check and kick the
+        // active tab immediately rather than waiting up to a minute for the
+        // next heartbeat. Disabling needs no symmetric kick: access is just
+        // restored, and a tab already on blocked.html has its own
+        // "turn off Focus mode and continue" button.
+        const settings = await getSettings();
+        const day = await getDayState();
+        await maybeKickActiveTab(day, settings, enabled);
+      }
+      sendResponse({ ok: true, enabled });
       return;
     }
 

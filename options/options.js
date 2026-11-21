@@ -46,6 +46,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   const scheduleError = document.getElementById("schedule-error");
   const schedulesList = document.getElementById("schedules-list");
 
+  const focusUrlInput = document.getElementById("focus-url");
+  const focusError = document.getElementById("focus-error");
+  const focusBlockedList = document.getElementById("focus-blocked-list");
+
   const categoryUrlInput = document.getElementById("category-url");
   const categoryNameInput = document.getElementById("category-name");
   const addCategoryButton = document.getElementById("add-category");
@@ -112,8 +116,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function currentConfiguredHostnames() {
-    const lists = [siteLimitsList, schedulesList, categoriesList];
+    const lists = [siteLimitsList, schedulesList, categoriesList, focusBlockedList];
     return new Set(lists.flatMap((list) => Array.from(list.children).map((li) => li.dataset.site)));
+  }
+
+  function addFocusBlockedItem(hostname) {
+    const listItem = makeListItem(hostname);
+    listItem.dataset.site = hostname;
+    focusBlockedList.appendChild(listItem);
   }
 
   function addSiteLimitItem(hostname, minutes, period) {
@@ -172,6 +182,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     Object.entries(settings.siteSchedules).forEach(([hostname, schedule]) =>
       addScheduleItem(hostname, schedule.startHour, schedule.endHour)
     );
+
+    focusBlockedList.innerHTML = "";
+    settings.focusBlockedSites.forEach(addFocusBlockedItem);
 
     categoriesList.innerHTML = "";
     Object.entries(settings.siteCategories).forEach(([hostname, category]) => addCategoryItem(hostname, category));
@@ -415,7 +428,33 @@ document.addEventListener("DOMContentLoaded", async function () {
     // ignored hostname) - that configuration then never fires again, with
     // nothing else telling the user why. Not a hard block, just a heads-up.
     if (currentConfiguredHostnames().has(hostname)) {
-      ignoreListError.textContent = `Note: ${hostname} already has a limit, schedule, or category set - those won't take effect while it's ignored.`;
+      ignoreListError.textContent = `Note: ${hostname} already has a limit, schedule, category, or Focus mode block set - those won't take effect while it's ignored.`;
+    }
+  });
+
+  focusUrlInput.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    focusError.textContent = "";
+
+    const hostname = normalizeHostname(focusUrlInput.value);
+    if (!hostname) {
+      focusError.textContent = "Enter a valid site (e.g. example.com).";
+      return;
+    }
+
+    const existing = Array.from(focusBlockedList.children).map((li) => li.dataset.site);
+    if (existing.includes(hostname)) {
+      focusError.textContent = "That site is already on the list.";
+      return;
+    }
+
+    addFocusBlockedItem(hostname);
+    focusUrlInput.value = "";
+    showButtons();
+
+    if (currentIgnoredHostnames().includes(hostname)) {
+      focusError.textContent = `Note: ${hostname} is on your ignore list, so Focus mode won't block it until it's removed from Ignore.`;
     }
   });
 
@@ -476,6 +515,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     scheduleError.textContent = "";
     categoryError.textContent = "";
     customPassageError.textContent = "";
+    focusError.textContent = "";
   }
 
   saveButton.addEventListener("click", async function () {
@@ -511,6 +551,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     const customPassages = Array.from(customPassagesList.children).map((li) => JSON.parse(li.dataset.passage));
 
+    const focusBlockedSites = Array.from(focusBlockedList.children).map((li) => li.dataset.site);
+
     const difficultyChecked = difficultyRow.querySelector('input[name="challenge-difficulty"]:checked');
     const challengeDifficulty = difficultyChecked ? difficultyChecked.value : "medium";
 
@@ -542,6 +584,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       siteCategories,
       customPassages,
       challengeDifficulty,
+      focusBlockedSites,
     });
 
     await loadOptions();

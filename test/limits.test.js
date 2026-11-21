@@ -36,6 +36,7 @@ function baseSettings(overrides = {}) {
     globalMonthlyLimitMinutes: null,
     graceMinutes: 0,
     siteSchedules: {},
+    focusBlockedSites: [],
     ...overrides,
   };
 }
@@ -115,6 +116,53 @@ test("isBlocked: unlocking the schedule period holds even outside its window", (
   const settings = baseSettings({ siteSchedules: { "example.com": { startHour: 9, endHour: 17 } } });
   const outside = new Date(2026, 0, 1, 20, 0);
   assert.deepEqual(isBlocked("example.com", day, settings, outside), { blocked: false, reason: null, period: null });
+});
+
+test("isBlocked: a focus-blocked site is blocked when focus mode is enabled", () => {
+  const day = emptyDay();
+  const settings = baseSettings({ focusBlockedSites: ["example.com"] });
+  assert.deepEqual(isBlocked("example.com", day, settings, undefined, true), {
+    blocked: true,
+    reason: "focus",
+    period: "focus",
+  });
+});
+
+test("isBlocked: a focus-blocked site is not blocked while focus mode is disabled", () => {
+  const day = emptyDay();
+  const settings = baseSettings({ focusBlockedSites: ["example.com"] });
+  assert.deepEqual(isBlocked("example.com", day, settings), { blocked: false, reason: null, period: null });
+  assert.deepEqual(isBlocked("example.com", day, settings, undefined, false), {
+    blocked: false,
+    reason: null,
+    period: null,
+  });
+});
+
+test("isBlocked: focus mode enabled does not affect a site that isn't on its block list", () => {
+  const day = emptyDay();
+  const settings = baseSettings({ focusBlockedSites: ["other.com"] });
+  assert.deepEqual(isBlocked("example.com", day, settings, undefined, true), { blocked: false, reason: null, period: null });
+});
+
+test("isBlocked: a focus-mode block wins over a configured schedule on the same site (regression)", () => {
+  const day = emptyDay();
+  const settings = baseSettings({
+    focusBlockedSites: ["example.com"],
+    siteSchedules: { "example.com": { startHour: 9, endHour: 17 } },
+  });
+  const outside = new Date(2026, 0, 1, 20, 0);
+  assert.deepEqual(isBlocked("example.com", day, settings, outside, true), {
+    blocked: true,
+    reason: "focus",
+    period: "focus",
+  });
+});
+
+test("isBlocked: ignoredSites still overrides a focus-mode block (precedence)", () => {
+  const day = emptyDay();
+  const settings = baseSettings({ ignoredSites: ["example.com"], focusBlockedSites: ["example.com"] });
+  assert.deepEqual(isBlocked("example.com", day, settings, undefined, true), { blocked: false, reason: null, period: null });
 });
 
 test("isOutsideSchedule: no schedule configured means never outside", () => {
