@@ -1,10 +1,11 @@
-import { getSettings, getDayState, getActiveSession } from "../lib/storage.js";
+import { getSettings, getDayState, getActiveSession, getFocusModeEnabled } from "../lib/storage.js";
 import { isBlocked, WARNING_THRESHOLD_RATIO } from "../lib/limits.js";
 import { formatHMS } from "../lib/time.js";
 
 const statusEl = document.getElementById("status");
 const siteEl = document.getElementById("cSite");
 const timeEl = document.getElementById("cTime");
+const focusToggle = document.getElementById("focus-toggle");
 
 const PERIOD_LABEL = { day: "Daily", week: "Weekly", month: "Monthly" };
 
@@ -12,6 +13,21 @@ let currentHostname = null;
 let tickInterval = null;
 
 document.addEventListener("DOMContentLoaded", async function () {
+  focusToggle.checked = await getFocusModeEnabled();
+  focusToggle.addEventListener("change", async () => {
+    // Background.js is the single place owning persistence + the
+    // notification content-setting + an immediate kick of the active tab -
+    // the toggle only ever asks it to do that, rather than writing storage
+    // directly, same as the blocked page's own "turn off and continue" button.
+    focusToggle.disabled = true;
+    try {
+      await chrome.runtime.sendMessage({ type: "setFocusMode", enabled: focusToggle.checked });
+    } finally {
+      focusToggle.disabled = false;
+    }
+    await render();
+  });
+
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab || !tab.url) return;
 
@@ -35,6 +51,7 @@ async function render() {
 
   const settings = await getSettings();
   const day = await getDayState();
+  const focusModeEnabled = await getFocusModeEnabled();
   const live = await liveEstimateSeconds();
 
   const storedSeconds = day.tracking.sites[currentHostname] || 0;
@@ -93,12 +110,14 @@ async function render() {
   // single day's data (schedule needs no extra data, but staying consistent
   // with the rest of this function; rolling caps need several days of
   // storage), so these fall back to the background-confirmed state.
-  const result = isBlocked(currentHostname, day, settings);
+  const result = isBlocked(currentHostname, day, settings, undefined, focusModeEnabled);
   if (result.blocked) {
     const message =
-      result.period === "schedule"
-        ? "Outside allowed hours — complete a challenge to continue."
-        : `${PERIOD_LABEL[result.period] || "Daily"} limit reached — complete a challenge to continue.`;
+      result.period === "focus"
+        ? "This site is blocked by Focus mode."
+        : result.period === "schedule"
+          ? "Outside allowed hours — complete a challenge to continue."
+          : `${PERIOD_LABEL[result.period] || "Daily"} limit reached — complete a challenge to continue.`;
     showStatus(message);
     return;
   }

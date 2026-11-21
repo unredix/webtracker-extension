@@ -25,8 +25,17 @@ globalThis.chrome = {
   storage: { local: makeArea(), sync: makeArea(), session: makeArea() },
 };
 
-const { getDayState, saveDayState, getSettings, setSettings, getRecentDayStates, getKnownCategories, todayKey } =
-  await import("../lib/storage.js");
+const {
+  getDayState,
+  saveDayState,
+  getSettings,
+  setSettings,
+  getRecentDayStates,
+  getKnownCategories,
+  todayKey,
+  getFocusModeEnabled,
+  setFocusModeEnabled,
+} = await import("../lib/storage.js");
 
 test("getDayState: a never-saved day returns the full empty shape", async () => {
   const day = await getDayState("2026-01-01");
@@ -94,6 +103,7 @@ test("getSettings: returns documented defaults when nothing is stored", async ()
   assert.equal(settings.graceMinutes, 0);
   assert.equal(settings.challengeDifficulty, "medium");
   assert.deepEqual(settings.customPassages, []);
+  assert.deepEqual(settings.focusBlockedSites, []);
 });
 
 test("setSettings + getSettings: round-trips every field", async () => {
@@ -103,6 +113,7 @@ test("setSettings + getSettings: round-trips every field", async () => {
     siteCategories: { "example.com": "Work" },
     challengeDifficulty: "hard",
     customPassages: [{ id: "1", title: "Custom", text: "Some text.", question: { prompt: "?", choices: ["a", "b"], correctIndex: 0 } }],
+    focusBlockedSites: ["distracting.com"],
   });
   const settings = await getSettings();
   assert.deepEqual(settings.siteLimits, { "example.com": 30 });
@@ -110,6 +121,18 @@ test("setSettings + getSettings: round-trips every field", async () => {
   assert.deepEqual(settings.siteCategories, { "example.com": "Work" });
   assert.equal(settings.challengeDifficulty, "hard");
   assert.equal(settings.customPassages.length, 1);
+  assert.deepEqual(settings.focusBlockedSites, ["distracting.com"]);
+});
+
+test("getFocusModeEnabled: defaults to false when nothing is stored", async () => {
+  assert.equal(await getFocusModeEnabled(), false);
+});
+
+test("setFocusModeEnabled + getFocusModeEnabled: round-trips true/false", async () => {
+  await setFocusModeEnabled(true);
+  assert.equal(await getFocusModeEnabled(), true);
+  await setFocusModeEnabled(false);
+  assert.equal(await getFocusModeEnabled(), false);
 });
 
 test("getSettings: drops a malformed schedule entry instead of letting it reach isOutsideSchedule", async () => {

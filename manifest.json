@@ -1,13 +1,13 @@
 {
   "name": "Web Activity Tracker",
   "description": "A browser extension to monitor and log user web activity.",
-  "version": "2.1",
+  "version": "2.2",
   "manifest_version": 3,
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["tabs", "idle", "storage", "alarms", "notifications"],
+  "permissions": ["tabs", "idle", "storage", "alarms", "notifications", "contentSettings"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "./popup/popup.html",

@@ -38,6 +38,30 @@ body {
   color: rgb(236, 131, 90);
 }
 
+.focusToggle {
+  margin: 0 0 16px;
+  padding: 10px 0;
+  border: 1px solid rgb(48, 48, 48);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.focusToggle label {
+  color: rgb(190, 190, 190);
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.focusToggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: rgb(133, 133, 255);
+}
+
 .currentTime {
   color: white;
   text-align: center;
